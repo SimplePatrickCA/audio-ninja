@@ -37,6 +37,10 @@ public enum AudioLoader {
     /// AVAudioPCMBuffer stays trivial next to the decoded result.
     private static let chunkFrames: AVAudioFrameCount = 65_536
 
+    /// Carbon's `eofErr`, spelled numerically because that constant is macOS-only and this package
+    /// also builds for iOS.
+    private static let endOfFileStatus = -39
+
     public static func load(from url: URL, byteLimit: Int = defaultByteLimit) throws -> AudioSamples {
         try decode(from: url, byteLimit: byteLimit, onProgress: { _ in })
     }
@@ -100,7 +104,7 @@ public enum AudioLoader {
             // macOS 27, file.length matches the decoded frame count exactly for wav, mp3 and m4a.
             do {
                 try file.read(into: scratch, frameCount: chunkFrames)
-            } catch let error as NSError where error.code == eofErr {
+            } catch let error as NSError where error.code == Self.endOfFileStatus {
                 break
             }
             let framesRead = Int(scratch.frameLength)
