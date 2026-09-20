@@ -36,6 +36,10 @@ public final class AudioPlayer {
     /// relative to the scheduled buffer, so the absolute playhead is this plus that offset.
     @ObservationIgnored private var scheduledStartFrame = 0
 
+    /// Identifies the current scheduling, so a completion handler can tell whether it belongs to
+    /// the playback that is running now or to one that has since been replaced.
+    @ObservationIgnored private var playbackGeneration = 0
+
     public init() {
         engine.attach(player)
     }
@@ -72,6 +76,9 @@ public final class AudioPlayer {
         try connect(to: buffer.format)
 
         scheduledStartFrame = wanted.lowerBound
+        playbackGeneration &+= 1
+        let generation = playbackGeneration
+
         // .dataPlayedBack, not the default .dataConsumed: "consumed" fires once the player has
         // taken the data, which for a single large buffer is long before the listener has heard it
         // — and the handler below stops playback.
@@ -81,7 +88,7 @@ public final class AudioPlayer {
             options: [],
             completionCallbackType: .dataPlayedBack
         ) { [weak self] _ in
-            Task { @MainActor in self?.handlePlaybackFinished() }
+            Task { @MainActor in self?.handlePlaybackFinished(generation: generation) }
         }
 
         try engine.start()
@@ -109,6 +116,8 @@ public final class AudioPlayer {
     }
 
     public func stop() {
+        // Invalidate any outstanding completion handler before discarding its buffer.
+        playbackGeneration &+= 1
         player.stop()
         engine.stop()
         isPlaying = false
@@ -134,9 +143,15 @@ public final class AudioPlayer {
 
     // MARK: - Internals
 
-    private func handlePlaybackFinished() {
-        // The completion handler also fires on an explicit stop, so only react when still playing.
-        guard isPlaying else { return }
+    /// Ends playback, but only if the buffer that just finished is the one still playing.
+    ///
+    /// Discarding a scheduled buffer — which `stop()` does, and every `play` begins with a stop —
+    /// also fires its completion handler. That handler reaches the main actor asynchronously, so
+    /// without the generation check it could arrive after the *next* playback had started and stop
+    /// it a fraction of a second in. Checking `isPlaying` alone is not enough, because by then it
+    /// is true again for the new playback.
+    private func handlePlaybackFinished(generation: Int) {
+        guard generation == playbackGeneration, isPlaying else { return }
         stop()
     }
 
