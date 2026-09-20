@@ -1,3 +1,4 @@
+import Accelerate
 import Foundation
 
 /// The vertical extent of one column of the drawn waveform.
@@ -47,18 +48,19 @@ public struct PeakCache: Sendable {
             var bins = [Peak]()
             bins.reserveCapacity(binsPerChannel)
             source.withUnsafeBufferPointer { buffer in
+                guard let base = buffer.baseAddress else { return }
                 var start = 0
                 while start < buffer.count {
-                    let end = Swift.min(start + Self.framesPerBin, buffer.count)
-                    var low = Float.greatestFiniteMagnitude
-                    var high = -Float.greatestFiniteMagnitude
-                    for index in start..<end {
-                        let value = buffer[index]
-                        low = Swift.min(low, value)
-                        high = Swift.max(high, value)
-                    }
+                    let length = vDSP_Length(Swift.min(Self.framesPerBin, buffer.count - start))
+                    var low: Float = 0
+                    var high: Float = 0
+                    // vDSP rather than a scalar loop: this walks every sample of the file, and on a
+                    // five-minute stereo track the difference is seconds of staring at an empty
+                    // window before the waveform appears.
+                    vDSP_minv(base + start, 1, &low, length)
+                    vDSP_maxv(base + start, 1, &high, length)
                     bins.append(Peak(min: low, max: high))
-                    start = end
+                    start += Int(length)
                 }
             }
             return bins
@@ -92,21 +94,27 @@ public struct PeakCache: Sendable {
                 var low = Float.greatestFiniteMagnitude
                 var high = -Float.greatestFiniteMagnitude
 
-                @inline(__always)
+                // Exact measurement of a partial bin, vectorised. Called up to twice per drawn
+                // column, so a scalar loop here was most of the cost of a window resize.
                 func scan(_ range: Range<Int>) {
-                    for index in range.clamped(to: 0..<buffer.count) {
-                        low = Swift.min(low, buffer[index])
-                        high = Swift.max(high, buffer[index])
-                    }
+                    let safe = range.clamped(to: 0..<buffer.count)
+                    guard !safe.isEmpty, let base = buffer.baseAddress else { return }
+                    var partialLow: Float = 0
+                    var partialHigh: Float = 0
+                    let length = vDSP_Length(safe.count)
+                    vDSP_minv(base + safe.lowerBound, 1, &partialLow, length)
+                    vDSP_maxv(base + safe.lowerBound, 1, &partialHigh, length)
+                    low = Swift.min(low, partialLow)
+                    high = Swift.max(high, partialHigh)
                 }
 
-                for range in editList.originalRanges(forEdited: lower..<upper) {
+                editList.forEachOriginalRange(forEdited: lower..<upper) { range in
                     let firstWhole = (range.lowerBound + Self.framesPerBin - 1) / Self.framesPerBin
                     let endWhole = range.upperBound / Self.framesPerBin
 
                     guard firstWhole < endWhole else {
                         scan(range)
-                        continue
+                        return
                     }
                     scan(range.lowerBound..<(firstWhole * Self.framesPerBin))
                     for index in firstWhole..<Swift.min(endWhole, cache.count) {

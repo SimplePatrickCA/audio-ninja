@@ -9,8 +9,6 @@
 			<string>Audio File</string>
 			<key>CFBundleTypeRole</key>
 			<string>Editor</string>
-			<!-- Alternate, not Owner: opening .mp3 should not make this the system default
-			     handler for every audio file on the machine. -->
 			<key>LSHandlerRank</key>
 			<string>Alternate</string>
 			<key>LSItemContentTypes</key>
@@ -25,10 +23,6 @@
 			</array>
 		</dict>
 	</array>
-	<key>LSSupportsOpeningDocumentsInPlace</key>
-	<true/>
-	<key>UISupportsDocumentBrowser</key>
-	<true/>
 	<key>UILaunchScreen</key>
 	<dict/>
 </dict>

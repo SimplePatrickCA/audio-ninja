@@ -24,6 +24,10 @@ public final class AudioPlayer {
     @ObservationIgnored private var samples: AudioSamples?
     @ObservationIgnored private var connectedFormat: AVAudioFormat?
 
+    /// The whole loaded file as a PCM buffer, built once and reused for every full playback.
+    /// Rebuilding it per press costs a copy of the entire file.
+    @ObservationIgnored private var fullBuffer: AVAudioPCMBuffer?
+
     /// Where in the timeline the currently scheduled buffer began. `playerTime.sampleTime` is
     /// relative to the scheduled buffer, so the absolute playhead is this plus that offset.
     @ObservationIgnored private var scheduledStartFrame = 0
@@ -37,6 +41,7 @@ public final class AudioPlayer {
     public func load(_ samples: AudioSamples) {
         stop()
         self.samples = samples
+        fullBuffer = nil
     }
 
     // MARK: - Transport
@@ -48,14 +53,30 @@ public final class AudioPlayer {
         stop()
 
         let wanted = (range ?? 0..<samples.frameCount).clamped(to: 0..<samples.frameCount)
-        guard !wanted.isEmpty, let buffer = samples.makePCMBuffer(range: wanted) else { return }
+        guard !wanted.isEmpty else { return }
+
+        let buffer: AVAudioPCMBuffer?
+        if wanted == 0..<samples.frameCount {
+            if fullBuffer == nil { fullBuffer = samples.makePCMBuffer() }
+            buffer = fullBuffer
+        } else {
+            buffer = samples.makePCMBuffer(range: wanted)
+        }
+        guard let buffer else { return }
 
         try configureSession()
         try connect(to: buffer.format)
 
         scheduledStartFrame = wanted.lowerBound
-        // Scheduling before the engine starts is fine and avoids a gap at the head.
-        player.scheduleBuffer(buffer, at: nil, options: []) { [weak self] in
+        // .dataPlayedBack, not the default .dataConsumed: "consumed" fires once the player has
+        // taken the data, which for a single large buffer is long before the listener has heard it
+        // — and the handler below stops playback.
+        player.scheduleBuffer(
+            buffer,
+            at: nil,
+            options: [],
+            completionCallbackType: .dataPlayedBack
+        ) { [weak self] _ in
             Task { @MainActor in self?.handlePlaybackFinished() }
         }
 

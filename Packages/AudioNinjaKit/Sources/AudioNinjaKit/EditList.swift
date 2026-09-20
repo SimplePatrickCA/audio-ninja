@@ -52,24 +52,33 @@ public struct EditList: Sendable, Equatable {
     /// This is the one piece of arithmetic every cut goes through. A selection the user made on an
     /// already-cut waveform can straddle several surviving ranges, so the result is a list.
     public func originalRanges(forEdited edited: Range<Int>) -> [Range<Int>] {
-        let wanted = edited.clamped(to: 0..<frameCount)
-        guard !wanted.isEmpty else { return [] }
-
         var result: [Range<Int>] = []
+        forEachOriginalRange(forEdited: edited) { result.append($0) }
+        return result
+    }
+
+    /// Allocation-free form of `originalRanges(forEdited:)`.
+    ///
+    /// The waveform calls this once per drawn column, so allocating an array per call showed up
+    /// plainly in a profile of window resizing.
+    @inlinable
+    public func forEachOriginalRange(forEdited edited: Range<Int>, _ body: (Range<Int>) -> Void) {
+        let wanted = edited.clamped(to: 0..<frameCount)
+        guard !wanted.isEmpty else { return }
+
         var editedCursor = 0
         for range in ranges {
             let rangeStart = editedCursor
             let rangeEnd = editedCursor + range.count
             editedCursor = rangeEnd
 
-            let low = max(wanted.lowerBound, rangeStart)
-            let high = min(wanted.upperBound, rangeEnd)
+            let low = Swift.max(wanted.lowerBound, rangeStart)
+            let high = Swift.min(wanted.upperBound, rangeEnd)
             if low < high {
-                result.append((range.lowerBound + low - rangeStart)..<(range.lowerBound + high - rangeStart))
+                body((range.lowerBound + low - rangeStart)..<(range.lowerBound + high - rangeStart))
             }
-            if rangeEnd >= wanted.upperBound { break }
+            if rangeEnd >= wanted.upperBound { return }
         }
-        return result
     }
 
     /// Maps a single edited frame index to its index in the original buffer.
@@ -123,23 +132,37 @@ public struct EditList: Sendable, Equatable {
             )
         }
 
+        // Nothing has been cut, so the result is the input. Worth checking explicitly: this is the
+        // state every file is in when it opens, and copying a decoded album track to hand back an
+        // identical buffer costs over a second on the main actor.
+        //
+        // Declicking does not change that. Its edges would be the true head and tail of the file,
+        // which are left alone precisely because there is no discontinuity there.
+        if ranges.count == 1, ranges[0] == 0..<original.frameCount {
+            return original
+        }
+
         var output = Array(
             repeating: [Float](repeating: 0, count: outputLength),
             count: original.channelCount
         )
 
+        // Bulk copy per surviving range rather than per sample. A cut is a handful of memcpys.
         for channel in 0..<original.channelCount {
-            let source = original.channels[channel]
-            var writeIndex = 0
-            for range in ranges {
-                let safe = range.clamped(to: 0..<source.count)
-                for index in safe {
-                    output[channel][writeIndex] = source[index]
-                    writeIndex += 1
+            original.channels[channel].withUnsafeBufferPointer { source in
+                output[channel].withUnsafeMutableBufferPointer { destination in
+                    var writeIndex = 0
+                    for range in ranges {
+                        let safe = range.clamped(to: 0..<source.count)
+                        if !safe.isEmpty {
+                            (destination.baseAddress! + writeIndex)
+                                .update(from: source.baseAddress! + safe.lowerBound, count: safe.count)
+                        }
+                        // Advance by the full range even if it was clamped: an edit list that
+                        // outran the buffer pads rather than desynchronising the channels.
+                        writeIndex += range.count
+                    }
                 }
-                // A range shorter than its clamp means the edit list outran the buffer; pad rather
-                // than desynchronise the channels.
-                writeIndex += range.count - safe.count
             }
         }
 

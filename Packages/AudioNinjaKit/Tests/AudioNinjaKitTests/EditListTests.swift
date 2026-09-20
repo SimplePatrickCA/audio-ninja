@@ -291,3 +291,50 @@ struct AudioBufferTests {
         #expect(buffer.channelCount == 0)
     }
 }
+
+@Suite("EditList rendering does no needless work")
+struct EditListRenderCostTests {
+    /// Rendering an uncut file must hand back the very same storage, not a copy of it.
+    ///
+    /// This is a performance contract expressed as a correctness test: copying a decoded album
+    /// track to produce an identical buffer cost over a second on the main actor every time play
+    /// was pressed, which is what made the app feel frozen.
+    @Test("An uncut render returns the original buffer without copying")
+    func uncutRenderDoesNotCopy() {
+        let samples = AudioSamples(
+            sampleRate: 48_000,
+            channels: [Array(repeating: Float(0.5), count: 100_000)]
+        )
+        let rendered = EditList(fullLength: 100_000).render(from: samples)
+
+        let originalAddress = samples.channels[0].withUnsafeBufferPointer { $0.baseAddress }
+        let renderedAddress = rendered.channels[0].withUnsafeBufferPointer { $0.baseAddress }
+        #expect(originalAddress == renderedAddress, "uncut render copied the samples")
+    }
+
+    @Test("A render whose list happens to cover everything also avoids the copy")
+    func equivalentFullRangeAlsoSkipsCopy() {
+        let samples = AudioSamples(sampleRate: 48_000, channels: [Array(repeating: Float(1), count: 5_000)])
+        // Two touching ranges normalise to one covering the whole file.
+        let list = EditList(ranges: [0..<2_000, 2_000..<5_000])
+        let rendered = list.render(from: samples)
+        let a = samples.channels[0].withUnsafeBufferPointer { $0.baseAddress }
+        let b = rendered.channels[0].withUnsafeBufferPointer { $0.baseAddress }
+        #expect(a == b)
+    }
+
+    @Test("A cut render does copy, and copies the right samples")
+    func cutRenderStillCopies() {
+        let samples = AudioSamples(
+            sampleRate: 48_000,
+            channels: [(0..<10_000).map { Float($0) }]
+        )
+        let rendered = EditList(fullLength: 10_000)
+            .deleting(2_000..<5_000)
+            .render(from: samples, declickFrames: 0)
+        #expect(rendered.frameCount == 7_000)
+        #expect(rendered.channels[0][1_999] == 1_999)
+        #expect(rendered.channels[0][2_000] == 5_000)
+        #expect(rendered.channels[0][6_999] == 9_999)
+    }
+}

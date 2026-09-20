@@ -26,8 +26,9 @@ struct WaveformView: View {
                 } else {
                     WaveformShapeView(channelBins: channelBins)
                         .equatable()
+                    channelLabels(in: size)
                     selectionOverlay(in: size)
-                    PlayheadView(document: document, width: size.width)
+                    PlayheadView(document: document, size: size)
                 }
             }
             .contentShape(Rectangle())
@@ -44,6 +45,28 @@ struct WaveformView: View {
         }
         .accessibilityLabel("Waveform")
         .accessibilityValue(document.isEmpty ? "No audio" : document.duration.formattedTime)
+    }
+
+    /// Marks the lanes as the left and right channels. Without this, a stereo file just looks like
+    /// the waveform has been drawn twice.
+    @ViewBuilder
+    private func channelLabels(in size: CGSize) -> some View {
+        if channelBins.count > 1 {
+            VStack(spacing: 0) {
+                ForEach(Array(channelBins.indices), id: \.self) { index in
+                    ZStack(alignment: .topLeading) {
+                        Color.clear
+                        Text(index == 0 ? "L" : "R")
+                            .font(.caption2.weight(.semibold))
+                            .foregroundStyle(.secondary)
+                            .padding(.leading, 8)
+                            .padding(.top, 6)
+                    }
+                    .frame(height: size.height / CGFloat(channelBins.count))
+                }
+            }
+            .allowsHitTesting(false)
+        }
     }
 
     private var emptyState: some View {
@@ -164,28 +187,36 @@ private struct WaveformShapeView: View, Equatable {
 
 /// Redraws at display rate while playing, and not at all otherwise.
 ///
-/// Kept in its own `TimelineView` and its own `Canvas` so that a moving playhead does not
-/// invalidate the waveform: pushing the position into an observable property instead would
-/// re-render every observing view up to 120 times a second on a ProMotion display.
+/// Kept in its own `TimelineView` so that a moving playhead does not invalidate the waveform:
+/// pushing the position into an observable property instead would re-render every observing view
+/// up to 120 times a second on a ProMotion display.
+///
+/// The position is drawn with geometry rather than into a `Canvas`. The playhead comes from
+/// `AVAudioNode.lastRenderTime`, which is not an observable property, so a Canvas whose inputs
+/// never change from SwiftUI's point of view is free to never redraw — which is exactly what
+/// happened: the line sat at the left edge for the whole of playback. Reading `context.date` and
+/// feeding the result into `offset` makes the dependency real.
 private struct PlayheadView: View {
     let document: AudioDocument
-    let width: CGFloat
+    let size: CGSize
 
     var body: some View {
-        TimelineView(.animation(minimumInterval: 1.0 / 60.0, paused: !document.player.isPlaying)) { _ in
-            Canvas { context, size in
-                guard
-                    document.frameCount > 0,
-                    let frame = document.player.currentFrame()
-                else { return }
-                let x = CGFloat(frame) / CGFloat(document.frameCount) * size.width
-                var path = Path()
-                path.move(to: CGPoint(x: x, y: 0))
-                path.addLine(to: CGPoint(x: x, y: size.height))
-                context.stroke(path, with: .color(.playhead), lineWidth: 1.5)
-            }
+        TimelineView(.animation(minimumInterval: 1.0 / 60.0, paused: !document.player.isPlaying)) { context in
+            let _ = context.date
+            let frame = document.player.currentFrame()
+            Rectangle()
+                .fill(Color.playhead)
+                .frame(width: 1.5, height: size.height)
+                .offset(x: position(of: frame))
+                .opacity(frame == nil ? 0 : 1)
         }
         .allowsHitTesting(false)
+    }
+
+    private func position(of frame: Int?) -> CGFloat {
+        guard let frame, document.frameCount > 0 else { return 0 }
+        let fraction = min(max(CGFloat(frame) / CGFloat(document.frameCount), 0), 1)
+        return fraction * size.width
     }
 }
 
