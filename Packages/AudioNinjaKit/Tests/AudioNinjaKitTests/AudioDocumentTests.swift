@@ -239,6 +239,32 @@ struct AudioDocumentWriteTests {
         #expect(reloaded.sampleRate == 48_000)
     }
 
+    @Test("Saving as MP3 goes through LAME and reloads")
+    func savesAsMP3() async throws {
+        let directory = try makeScratch()
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        let snapshot = AudioDocumentSnapshot(
+            original: AudioSamples(
+                sampleRate: 44_100,
+                channels: [(0..<44_100).map { Float(sin(2 * .pi * 1_000 * Double($0) / 44_100)) * 0.5 }]
+            ),
+            editList: EditList(fullLength: 44_100)
+        )
+        let destination = directory.appendingPathComponent("out.mp3")
+        let progress = ProgressManager(totalCount: 1)
+        try await AudioDocumentWriter(contentType: .mp3).write(
+            snapshot: snapshot,
+            to: destination,
+            previous: nil,
+            progress: progress.subprogress(assigningCount: 1)
+        )
+
+        let reloaded = try AudioLoader.load(from: destination)
+        #expect(reloaded.channelCount == 1)
+        #expect(abs(reloaded.frameCount - 44_100) < 3_000)
+    }
+
     @Test("Writing a format we have no encoder for fails with a usable message")
     func rejectsUnwritableType() async throws {
         let directory = try makeScratch()
@@ -251,9 +277,10 @@ struct AudioDocumentWriteTests {
         let progress = ProgressManager(totalCount: 1)
 
         await #expect(throws: AudioDocumentError.self) {
-            try await AudioDocumentWriter(contentType: .mp3).write(
+            // FLAC decodes fine but this app has no FLAC encoder wired up.
+            try await AudioDocumentWriter(contentType: AudioContentTypes.flac).write(
                 snapshot: snapshot,
-                to: directory.appendingPathComponent("out.mp3"),
+                to: directory.appendingPathComponent("out.flac"),
                 previous: nil,
                 progress: progress.subprogress(assigningCount: 1)
             )

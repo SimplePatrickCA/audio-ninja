@@ -12,16 +12,19 @@ enum AudioContentTypes {
         .wav, .aiff, .mp3, .mpeg4Audio, m4a, caf, flac,
     ]
 
-    /// Everything we can encode. Narrower than `readable`: MP3 needs a third-party encoder and
-    /// joins this list once LAME is vendored, and FLAC/AAC writing is not wired up yet. A file
-    /// whose type is not here opens fine but has to be saved elsewhere via Save As.
-    static let writable: [UTType] = [.wav, .aiff, caf]
+    /// Everything we can encode. Still narrower than `readable`: FLAC and AAC writing are not
+    /// wired up, so a file of those types opens fine but has to be saved elsewhere via Save As.
+    /// MP3 is here because LAME is vendored — Apple provides no MP3 encoder.
+    static let writable: [UTType] = [.wav, .aiff, caf, .mp3]
 
-    /// Maps a content type onto the container the exporter knows how to write.
+    /// Maps a content type onto the uncompressed container `AudioExporter` writes.
+    /// Returns nil for MP3, which goes through `MP3Exporter` instead.
     static func fileFormat(for type: UTType) -> AudioFileFormat? {
         if type.conforms(to: .wav) { return .wav }
         if type.conforms(to: .aiff) { return .aiff }
         if type.conforms(to: caf) { return .caf }
         return nil
     }
+
+    static func isMP3(_ type: UTType) -> Bool { type.conforms(to: .mp3) }
 }

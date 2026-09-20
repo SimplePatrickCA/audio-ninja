@@ -56,13 +56,17 @@ public struct AudioDocumentWriter: DocumentWriter {
         previous: sending AudioDocumentSnapshot?,
         progress: consuming Subprogress
     ) async throws {
-        guard let format = AudioContentTypes.fileFormat(for: contentType) else {
-            throw AudioDocumentError.unsupportedOutputFormat(contentType)
-        }
         let manager = progress.start(totalCount: 2)
         let rendered = snapshot.render()
         manager.complete(count: 1)
-        try AudioExporter.write(rendered, to: destination, format: format)
+
+        if AudioContentTypes.isMP3(contentType) {
+            try MP3Exporter.write(rendered, to: destination)
+        } else if let format = AudioContentTypes.fileFormat(for: contentType) {
+            try AudioExporter.write(rendered, to: destination, format: format)
+        } else {
+            throw AudioDocumentError.unsupportedOutputFormat(contentType)
+        }
         manager.complete(count: 1)
     }
 }

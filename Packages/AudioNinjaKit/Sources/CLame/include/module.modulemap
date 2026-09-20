@@ -1,0 +1,6 @@
+// [system] so warnings originating inside LAME's public header are not attributed to code that
+// imports it. It does not suppress warnings in the .c files themselves.
+module CLame [system] {
+    header "lame.h"
+    export *
+}
