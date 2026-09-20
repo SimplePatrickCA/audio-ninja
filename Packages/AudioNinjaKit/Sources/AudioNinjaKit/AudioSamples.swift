@@ -3,9 +3,9 @@ import Foundation
 /// Deinterleaved PCM audio as a value type.
 ///
 /// `AVAudioPCMBuffer` is a non-`Sendable` class, so it cannot cross actor boundaries under strict
-/// concurrency. Everything in this package is built on `AudioBuffer` instead; AVFoundation types
+/// concurrency. Everything in this package is built on `AudioSamples` instead; AVFoundation types
 /// appear only at the decode and playback edges.
-public struct AudioBuffer: Sendable, Equatable {
+public struct AudioSamples: Sendable, Equatable {
     public let sampleRate: Double
 
     /// Sample data indexed `channels[channel][frame]`. Every channel has the same length.
@@ -39,8 +39,8 @@ public struct AudioBuffer: Sendable, Equatable {
         max(0, Int((seconds * sampleRate).rounded()))
     }
 
-    public static func silence(sampleRate: Double, channelCount: Int, frameCount: Int) -> AudioBuffer {
-        AudioBuffer(
+    public static func silence(sampleRate: Double, channelCount: Int, frameCount: Int) -> AudioSamples {
+        AudioSamples(
             sampleRate: sampleRate,
             channels: Array(repeating: Array(repeating: 0, count: frameCount), count: channelCount)
         )

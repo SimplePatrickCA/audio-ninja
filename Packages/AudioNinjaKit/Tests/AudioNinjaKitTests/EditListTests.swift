@@ -4,8 +4,8 @@ import Testing
 /// A buffer whose every sample encodes its own frame index, so that after a cut the surviving
 /// samples say exactly where they came from. This is what lets us prove a splice is sample-accurate
 /// without anyone listening to it.
-private func indexSignal(frames: Int, channels: Int = 1, sampleRate: Double = 48_000) -> AudioBuffer {
-    AudioBuffer(
+private func indexSignal(frames: Int, channels: Int = 1, sampleRate: Double = 48_000) -> AudioSamples {
+    AudioSamples(
         sampleRate: sampleRate,
         channels: (0..<channels).map { channel in
             (0..<frames).map { Float($0 + channel * 1_000_000) }
@@ -14,7 +14,7 @@ private func indexSignal(frames: Int, channels: Int = 1, sampleRate: Double = 48
 }
 
 /// Renders with declicking off, so assertions see the raw concatenation.
-private func rendered(_ list: EditList, _ original: AudioBuffer) -> [Float] {
+private func rendered(_ list: EditList, _ original: AudioSamples) -> [Float] {
     list.render(from: original, declickFrames: 0).channels[0]
 }
 
@@ -198,7 +198,7 @@ struct EditListRenderTests {
 
     @Test("A cut edge is ramped rather than stepped")
     func declickRampsTheEdge() {
-        let original = AudioBuffer(
+        let original = AudioSamples(
             sampleRate: 48_000,
             channels: [[Float](repeating: 1.0, count: 1000)]
         )
@@ -217,7 +217,7 @@ struct EditListRenderTests {
 
     @Test("Declick leaves the true file head and tail alone")
     func declickSkipsFileEdges() {
-        let original = AudioBuffer(
+        let original = AudioSamples(
             sampleRate: 48_000,
             channels: [[Float](repeating: 1.0, count: 1000)]
         )
@@ -241,7 +241,7 @@ struct EditListRenderTests {
 
     @Test("Ramps on a very short segment cannot overlap and cancel it")
     func shortSegmentRamp() {
-        let original = AudioBuffer(sampleRate: 48_000, channels: [[Float](repeating: 1.0, count: 1000)])
+        let original = AudioSamples(sampleRate: 48_000, channels: [[Float](repeating: 1.0, count: 1000)])
         // A 10-frame keep, far shorter than the 72-frame default ramp at 48 kHz.
         let list = EditList(fullLength: 1000).trimmed(to: 500..<510)
         let result = list.render(from: original)
@@ -260,11 +260,11 @@ struct EditListRenderTests {
     }
 }
 
-@Suite("AudioBuffer")
+@Suite("AudioSamples")
 struct AudioBufferTests {
     @Test("Duration follows frame count and sample rate")
     func duration() {
-        let buffer = AudioBuffer.silence(sampleRate: 48_000, channelCount: 2, frameCount: 48_000)
+        let buffer = AudioSamples.silence(sampleRate: 48_000, channelCount: 2, frameCount: 48_000)
         #expect(buffer.duration == .seconds(1))
         #expect(buffer.frameCount == 48_000)
         #expect(buffer.channelCount == 2)
@@ -272,20 +272,20 @@ struct AudioBufferTests {
 
     @Test("Byte count reflects deinterleaved float storage")
     func byteCount() {
-        let buffer = AudioBuffer.silence(sampleRate: 44_100, channelCount: 2, frameCount: 1000)
+        let buffer = AudioSamples.silence(sampleRate: 44_100, channelCount: 2, frameCount: 1000)
         #expect(buffer.byteCount == 2 * 1000 * 4)
     }
 
     @Test("Frame conversion rounds to nearest")
     func frameConversion() {
-        let buffer = AudioBuffer.silence(sampleRate: 48_000, channelCount: 1, frameCount: 0)
+        let buffer = AudioSamples.silence(sampleRate: 48_000, channelCount: 1, frameCount: 0)
         #expect(buffer.frames(forSeconds: 0.0015) == 72)
         #expect(buffer.frames(forSeconds: -1) == 0)
     }
 
     @Test("An empty buffer reports zero duration")
     func emptyBuffer() {
-        let buffer = AudioBuffer(sampleRate: 48_000, channels: [])
+        let buffer = AudioSamples(sampleRate: 48_000, channels: [])
         #expect(buffer.isEmpty)
         #expect(buffer.frameCount == 0)
         #expect(buffer.channelCount == 0)

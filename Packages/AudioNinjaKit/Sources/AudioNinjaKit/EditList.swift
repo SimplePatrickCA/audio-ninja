@@ -107,17 +107,17 @@ public struct EditList: Sendable, Equatable {
     /// (A ramp, not a crossfade: the edit list must preserve exact frame counts, and overlapping the
     /// two sides would shorten the result.) Edges that coincide with the true start or end of the
     /// original are left alone — there is no discontinuity there to hide.
-    public func render(from original: AudioBuffer) -> AudioBuffer {
+    public func render(from original: AudioSamples) -> AudioSamples {
         let declick = original.frames(forSeconds: Self.declickSeconds)
         return render(from: original, declickFrames: declick)
     }
 
     /// `declickFrames == 0` renders a bit-exact concatenation, which is what the tests use to prove
     /// the splice arithmetic independently of the fades.
-    public func render(from original: AudioBuffer, declickFrames: Int) -> AudioBuffer {
+    public func render(from original: AudioSamples, declickFrames: Int) -> AudioSamples {
         let outputLength = frameCount
         guard outputLength > 0, original.channelCount > 0 else {
-            return AudioBuffer(
+            return AudioSamples(
                 sampleRate: original.sampleRate,
                 channels: Array(repeating: [], count: original.channelCount)
             )
@@ -144,11 +144,11 @@ public struct EditList: Sendable, Equatable {
         }
 
         guard declickFrames > 0 else {
-            return AudioBuffer(sampleRate: original.sampleRate, channels: output)
+            return AudioSamples(sampleRate: original.sampleRate, channels: output)
         }
 
         applyDeclick(to: &output, originalLength: original.frameCount, declickFrames: declickFrames)
-        return AudioBuffer(sampleRate: original.sampleRate, channels: output)
+        return AudioSamples(sampleRate: original.sampleRate, channels: output)
     }
 
     /// Ramps each cut edge. Fades are capped at half the shorter adjoining segment so that two cuts
