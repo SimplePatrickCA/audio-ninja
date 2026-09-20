@@ -191,3 +191,73 @@ struct AudioLoaderGuardTests {
         #expect(reporter.fractionCompleted == 1.0)
     }
 }
+
+@Suite("Compressed input")
+struct CompressedInputTests {
+    /// Writes AAC directly, bypassing AudioExporter (which only handles uncompressed containers).
+    /// Apple ships an AAC encoder, so this needs no third-party code.
+    private func writeAAC(_ samples: AudioSamples, to url: URL) throws {
+        let settings: [String: Any] = [
+            AVFormatIDKey: kAudioFormatMPEG4AAC,
+            AVSampleRateKey: samples.sampleRate,
+            AVNumberOfChannelsKey: samples.channelCount,
+        ]
+        let file = try AVAudioFile(
+            forWriting: url,
+            settings: settings,
+            commonFormat: .pcmFormatFloat32,
+            interleaved: false
+        )
+        let scratch = AVAudioPCMBuffer(
+            pcmFormat: file.processingFormat,
+            frameCapacity: AVAudioFrameCount(samples.frameCount)
+        )!
+        scratch.frameLength = AVAudioFrameCount(samples.frameCount)
+        for channel in 0..<samples.channelCount {
+            samples.channels[channel].withUnsafeBufferPointer { source in
+                scratch.floatChannelData![channel].update(
+                    from: source.baseAddress!,
+                    count: samples.frameCount
+                )
+            }
+        }
+        try file.write(from: scratch)
+    }
+
+    @Test("A compressed source decodes to float without truncating the tail")
+    func decodesCompressedInput() throws {
+        let directory = try makeScratchDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        let original = sine(frames: 48_000, channels: 2)
+        let url = directory.appendingPathComponent("compressed.m4a")
+        try writeAAC(original, to: url)
+
+        let reloaded = try AudioLoader.load(from: url)
+        #expect(reloaded.sampleRate == 48_000)
+        #expect(reloaded.channelCount == 2)
+        // AAC adds encoder priming and pads to a whole packet, so the decoded length is close to
+        // but not identical to the input. What matters is that nothing is truncated.
+        #expect(reloaded.frameCount >= original.frameCount)
+        #expect(reloaded.frameCount < original.frameCount + 5_000)
+    }
+
+    @Test("A compressed source can be cut and exported losslessly")
+    func cutsCompressedInput() throws {
+        let directory = try makeScratchDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        let original = sine(frames: 48_000, channels: 1)
+        let source = directory.appendingPathComponent("in.m4a")
+        try writeAAC(original, to: source)
+
+        let decoded = try AudioLoader.load(from: source)
+        let list = EditList(fullLength: decoded.frameCount).trimmed(to: 1_000..<2_000)
+        let edited = list.render(from: decoded)
+        #expect(edited.frameCount == 1_000)
+
+        let out = directory.appendingPathComponent("out.wav")
+        try AudioExporter.write(edited, to: out, format: .wav, depth: .float32)
+        #expect(try AudioLoader.load(from: out).frameCount == 1_000)
+    }
+}

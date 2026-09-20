@@ -94,7 +94,15 @@ public enum AudioLoader {
         }
 
         while file.framePosition < file.length {
-            try file.read(into: scratch, frameCount: chunkFrames)
+            // AVAudioFile.read throws eofErr past the end rather than returning zero frames, and a
+            // container's declared length can in principle disagree with what actually decodes, so
+            // treat the end of file as a normal loop exit rather than a failure. Measured on
+            // macOS 27, file.length matches the decoded frame count exactly for wav, mp3 and m4a.
+            do {
+                try file.read(into: scratch, frameCount: chunkFrames)
+            } catch let error as NSError where error.code == eofErr {
+                break
+            }
             let framesRead = Int(scratch.frameLength)
             guard framesRead > 0, let data = scratch.floatChannelData else { break }
 
