@@ -16,6 +16,10 @@ import Observation
 public final class AudioPlayer {
     public private(set) var isPlaying = false
 
+    /// Paused part-way through, as opposed to stopped. Resuming continues from here; starting
+    /// again re-schedules from the beginning of whatever range is requested.
+    public private(set) var isPaused = false
+
     /// Set when the engine fails mid-session, e.g. after an audio route change.
     public private(set) var lastError: (any Error)?
 
@@ -83,6 +87,7 @@ public final class AudioPlayer {
         try engine.start()
         try player.playAudio()
         isPlaying = true
+        isPaused = false
     }
 
     public func pause() {
@@ -90,21 +95,24 @@ public final class AudioPlayer {
         player.pause()
         engine.pause()
         isPlaying = false
+        isPaused = true
     }
 
     /// Resumes without re-scheduling, so the playhead continues where it left off.
     public func resume() throws {
-        guard !isPlaying, samples != nil, connectedFormat != nil else { return }
+        guard isPaused, samples != nil, connectedFormat != nil else { return }
         try configureSession()
         try engine.start()
         try player.playAudio()
         isPlaying = true
+        isPaused = false
     }
 
     public func stop() {
         player.stop()
         engine.stop()
         isPlaying = false
+        isPaused = false
         scheduledStartFrame = 0
     }
 

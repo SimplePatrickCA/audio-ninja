@@ -68,31 +68,64 @@ public struct PeakCache: Sendable {
     }
 
     /// Peaks for one channel of the edited timeline, decimated to exactly `binCount` columns.
-    ///
-    /// Whole cache bins are read straight from the cache; the partial bins at each end of a range
-    /// are measured from the samples. That distinction matters at a cut: a cache bin spanning the
-    /// cut point covers audio on both sides of it, so reading it wholesale would draw the discarded
-    /// audio into the first surviving column. The exact path costs at most `framesPerBin - 1`
-    /// samples per edge.
     public func bins(editList: EditList, channel: Int, binCount: Int) -> [Peak] {
-        guard binCount > 0, channel < channels.count else { return [] }
-        let cache = channels[channel]
-        let source = samples.channels[channel]
+        guard channel >= 0, channel < channels.count else { return [] }
+        return peaks(editList: editList, channels: [channel], binCount: binCount)
+    }
+
+    /// Peaks across every channel at once: the extremes of any channel in each column.
+    ///
+    /// This is the default view. Separate lanes per channel are useful when you care which side a
+    /// sound is on, but for most editing one waveform is what you want to see, and two unlabelled
+    /// lanes read as though the waveform has been drawn twice.
+    public func combinedBins(editList: EditList, binCount: Int) -> [Peak] {
+        peaks(editList: editList, channels: Array(channels.indices), binCount: binCount)
+    }
+
+    /// Merges the given channels into one set of columns.
+    ///
+    /// Whole cache bins come from the cache; the partial bins at each end of a range are measured
+    /// from the samples. That distinction matters at a cut: a cache bin spanning the cut point
+    /// covers audio from both sides of it, so reading it wholesale would draw discarded audio into
+    /// the first surviving column.
+    private func peaks(editList: EditList, channels channelIndices: [Int], binCount: Int) -> [Peak] {
+        guard binCount > 0, !channelIndices.isEmpty else { return [] }
         let total = editList.frameCount
-        guard total > 0, !cache.isEmpty else {
+        guard total > 0, !channels.isEmpty, !channels[0].isEmpty else {
             return Array(repeating: .silent, count: binCount)
         }
 
-        var result = [Peak]()
-        result.reserveCapacity(binCount)
+        var lows = [Float](repeating: .greatestFiniteMagnitude, count: binCount)
+        var highs = [Float](repeating: -.greatestFiniteMagnitude, count: binCount)
 
-        source.withUnsafeBufferPointer { buffer in
+        for channel in channelIndices where channel < channels.count {
+            accumulate(into: &lows, &highs, editList: editList, channel: channel, binCount: binCount)
+        }
+
+        return zip(lows, highs).map { low, high in
+            low <= high ? Peak(min: low, max: high) : .silent
+        }
+    }
+
+    /// One channel's contribution, folded into running per-column extremes.
+    private func accumulate(
+        into lows: inout [Float],
+        _ highs: inout [Float],
+        editList: EditList,
+        channel: Int,
+        binCount: Int
+    ) {
+        let cache = channels[channel]
+        let total = editList.frameCount
+        guard !cache.isEmpty else { return }
+
+        samples.channels[channel].withUnsafeBufferPointer { buffer in
             for column in 0..<binCount {
                 let lower = total * column / binCount
                 let upper = Swift.max(lower + 1, total * (column + 1) / binCount)
 
-                var low = Float.greatestFiniteMagnitude
-                var high = -Float.greatestFiniteMagnitude
+                var low = lows[column]
+                var high = highs[column]
 
                 // Exact measurement of a partial bin, vectorised. Called up to twice per drawn
                 // column, so a scalar loop here was most of the cost of a window resize.
@@ -124,9 +157,9 @@ public struct PeakCache: Sendable {
                     scan((endWhole * Self.framesPerBin)..<range.upperBound)
                 }
 
-                result.append(low <= high ? Peak(min: low, max: high) : .silent)
+                lows[column] = low
+                highs[column] = high
             }
         }
-        return result
     }
 }

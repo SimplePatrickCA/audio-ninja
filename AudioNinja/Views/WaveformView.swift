@@ -10,6 +10,11 @@ import SwiftUI
 struct WaveformView: View {
     @Bindable var document: AudioDocument
 
+    /// Off by default: one waveform for the file. Two unlabelled lanes read as though the waveform
+    /// has been drawn twice, and channel-by-channel detail is a specialist need.
+    @AppStorage(WaveformSettings.showsSeparateChannelsKey)
+    private var showsSeparateChannels = false
+
     @State private var channelBins: [[Peak]] = []
     @State private var renderedWidth: CGFloat = 0
     @State private var dragAnchor: Int?
@@ -27,6 +32,7 @@ struct WaveformView: View {
                     WaveformShapeView(channelBins: channelBins)
                         .equatable()
                     channelLabels(in: size)
+                    insertionPointOverlay(in: size)
                     selectionOverlay(in: size)
                     PlayheadView(document: document, size: size)
                 }
@@ -42,6 +48,9 @@ struct WaveformView: View {
             .onChange(of: document.frameCount) { _, _ in
                 rebuildBins(width: size.width)
             }
+            .onChange(of: showsSeparateChannels) { _, _ in
+                rebuildBins(width: size.width)
+            }
         }
         .accessibilityLabel("Waveform")
         .accessibilityValue(document.isEmpty ? "No audio" : document.duration.formattedTime)
@@ -51,7 +60,7 @@ struct WaveformView: View {
     /// the waveform has been drawn twice.
     @ViewBuilder
     private func channelLabels(in size: CGSize) -> some View {
-        if channelBins.count > 1 {
+        if showsSeparateChannels && channelBins.count > 1 {
             VStack(spacing: 0) {
                 ForEach(Array(channelBins.indices), id: \.self) { index in
                     ZStack(alignment: .topLeading) {
@@ -78,6 +87,18 @@ struct WaveformView: View {
     }
 
     // MARK: - Selection
+
+    /// The cursor: where playback will start when there is no selection.
+    @ViewBuilder
+    private func insertionPointOverlay(in size: CGSize) -> some View {
+        if !document.hasSelection, document.frameCount > 0, document.insertionPoint > 0 {
+            Rectangle()
+                .fill(Color.accentColor)
+                .frame(width: 1.5, height: size.height)
+                .offset(x: xPosition(forFrame: document.insertionPoint, width: size.width))
+                .allowsHitTesting(false)
+        }
+    }
 
     @ViewBuilder
     private func selectionOverlay(in size: CGSize) -> some View {
@@ -106,7 +127,12 @@ struct WaveformView: View {
                 let current = frame(atX: value.location.x, width: width)
                 let lower = min(anchor, current)
                 let upper = max(anchor, current)
-                document.selection = lower < upper ? lower..<upper : nil
+                if lower < upper {
+                    document.select(lower..<upper)
+                } else {
+                    // A click rather than a drag: place the cursor and play from there next time.
+                    document.moveInsertionPoint(to: anchor)
+                }
             }
             .onEnded { _ in dragAnchor = nil }
     }
@@ -135,8 +161,12 @@ struct WaveformView: View {
         }
         // One column per point is plenty; more would be invisible and cost proportionally.
         let columns = max(1, Int(width))
-        channelBins = (0..<peaks.channelCount).map { channel in
-            peaks.bins(editList: document.editList, channel: channel, binCount: columns)
+        if showsSeparateChannels {
+            channelBins = (0..<peaks.channelCount).map { channel in
+                peaks.bins(editList: document.editList, channel: channel, binCount: columns)
+            }
+        } else {
+            channelBins = [peaks.combinedBins(editList: document.editList, binCount: columns)]
         }
         renderedWidth = width
     }

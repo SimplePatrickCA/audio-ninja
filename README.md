@@ -7,7 +7,10 @@ Built with Swift 6.4 and SwiftUI, targeting macOS 27 and iOS 27.
 ## What it does
 
 - Opens WAV, AIFF, CAF, MP3, M4A and FLAC
-- Draws the waveform, plays the whole file or just the selection
+- Draws the waveform — one lane for the file by default, or one per channel if you turn on
+  **Show Separate Channels** (⇧⌘L, or the ••• button)
+- Click to place the cursor, drag to select. Play starts from the selection, or from the cursor,
+  or from the beginning if neither is set
 - **Trim to selection** and **delete selection**, with unlimited undo and redo
 - Saves as WAV, AIFF, CAF or MP3
 

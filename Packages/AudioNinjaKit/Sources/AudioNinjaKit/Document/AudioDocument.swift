@@ -33,6 +33,10 @@ public final class AudioDocument: @MainActor Document {
     /// Selected range in edited coordinates — the same space the waveform is drawn in.
     public var selection: Range<Int>?
 
+    /// Where a click placed the cursor, in edited coordinates. Playback starts here when there is
+    /// no selection, so clicking part-way through and pressing play does what you would expect.
+    public var insertionPoint: Int = 0
+
     @ObservationIgnored public let player = AudioPlayer()
 
     /// Rendered audio for playback and export, rebuilt only when the edit list changes.
@@ -52,6 +56,16 @@ public final class AudioDocument: @MainActor Document {
     public var hasSelection: Bool {
         guard let selection else { return false }
         return !selection.isEmpty
+    }
+
+    /// What pressing play should play: the selection if there is one, otherwise from the cursor to
+    /// the end, otherwise the whole file.
+    public var playbackRange: Range<Int>? {
+        if let selection, !selection.isEmpty { return selection }
+        let start = Swift.min(Swift.max(insertionPoint, 0), frameCount)
+        // A cursor at the very end would otherwise make play a silent no-op; replay instead.
+        guard start > 0, start < frameCount else { return nil }
+        return start..<frameCount
     }
 
     /// The edited audio. Cached because playback asks for it on every transport action.
@@ -79,6 +93,7 @@ public final class AudioDocument: @MainActor Document {
 
     public func selectAll() {
         selection = frameCount > 0 ? 0..<frameCount : nil
+        insertionPoint = 0
     }
 
     /// Registers with the system `UndoManager` so ⌘Z, the Edit menu, and the shake and three-finger
@@ -91,6 +106,7 @@ public final class AudioDocument: @MainActor Document {
 
         editList = new
         selection = nil
+        insertionPoint = 0
         player.stop()
 
         undoManager?.registerUndo(withTarget: self) { document in
@@ -107,9 +123,26 @@ public final class AudioDocument: @MainActor Document {
     public func togglePlayback() {
         if player.isPlaying {
             player.pause()
+        } else if player.isPaused {
+            try? player.resume()
         } else {
-            play(range: nil)
+            play(range: playbackRange)
         }
+    }
+
+    /// Moves the cursor, discarding any selection and any paused playback so the next press starts
+    /// from the new position rather than resuming the old one.
+    public func moveInsertionPoint(to frame: Int) {
+        insertionPoint = Swift.min(Swift.max(frame, 0), frameCount)
+        selection = nil
+        player.stop()
+    }
+
+    /// Sets the selection and puts the cursor at its start.
+    public func select(_ range: Range<Int>) {
+        selection = range
+        insertionPoint = range.lowerBound
+        player.stop()
     }
 
     public func playSelection() {
@@ -144,6 +177,7 @@ public final class AudioDocument: @MainActor Document {
         editList = snapshot.editList
         peaks = snapshot.peaks
         selection = nil
+        insertionPoint = 0
         renderedCache = nil
         renderedFor = nil
         player.stop()
@@ -153,3 +187,16 @@ public final class AudioDocument: @MainActor Document {
         AudioDocumentSnapshot(original: original, editList: editList)
     }
 }
+
+#if DEBUG
+extension AudioDocument {
+    /// Loads samples directly, bypassing the file reader. Tests only.
+    public func adoptForTesting(_ samples: AudioSamples) {
+        original = samples
+        editList = EditList(fullLength: samples.frameCount)
+        peaks = PeakCache(samples: samples)
+        selection = nil
+        insertionPoint = 0
+    }
+}
+#endif

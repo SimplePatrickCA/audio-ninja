@@ -7,7 +7,15 @@ struct AppCommands: Commands {
     @FocusedValue(\.audioDocument) private var document
     @Environment(\.undoManager) private var undoManager
 
+    @AppStorage(WaveformSettings.showsSeparateChannelsKey)
+    private var showsSeparateChannels = false
+
     var body: some Commands {
+        CommandGroup(after: .toolbar) {
+            Toggle("Show Separate Channels", isOn: $showsSeparateChannels)
+                .keyboardShortcut("l", modifiers: [.command, .shift])
+        }
+
         CommandMenu("Edit Audio") {
             Button("Trim to Selection") {
                 document?.trimToSelection(undoManager: undoManager)
@@ -42,6 +50,13 @@ struct AppCommands: Commands {
             Button("Play Selection") { document?.playSelection() }
                 .keyboardShortcut(.space, modifiers: .shift)
                 .disabled(document?.hasSelection != true)
+
+            Button("Return to Start") {
+                document?.player.stop()
+                document?.moveInsertionPoint(to: 0)
+            }
+            .keyboardShortcut(.return, modifiers: [])
+            .disabled(document?.isEmpty != false)
 
             Button("Stop") { document?.player.stop() }
                 .keyboardShortcut(".", modifiers: .command)

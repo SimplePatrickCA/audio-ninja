@@ -12,6 +12,8 @@ struct TransportBar: View {
     @Bindable var document: AudioDocument
     @Environment(\.undoManager) private var undoManager
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @AppStorage(WaveformSettings.showsSeparateChannelsKey)
+    private var showsSeparateChannels = false
     @Namespace private var glass
 
     var body: some View {
@@ -66,8 +68,21 @@ struct TransportBar: View {
                 .font(.system(.body, design: .monospaced))
                 .monospacedDigit()
                 .foregroundStyle(.secondary)
-                .padding(.trailing, 4)
                 .accessibilityLabel("Duration")
+
+            // Also reachable from the macOS View menu; this is how iOS gets at it.
+            Menu {
+                Toggle("Show Separate Channels", isOn: $showsSeparateChannels)
+            } label: {
+                Label("Options", systemImage: "ellipsis")
+                    .labelStyle(.iconOnly)
+                    .frame(minWidth: PlatformMetrics.controlSize, minHeight: PlatformMetrics.controlSize)
+            }
+            .menuStyle(.button)
+            .buttonStyle(.glass)
+            .menuIndicator(.hidden)
+            .focusable(false)
+            .help("Display options")
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 8)
