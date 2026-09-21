@@ -72,7 +72,8 @@ RELEASE_ONLY = {
 
 APP_SETTINGS = {
     "ASSETCATALOG_COMPILER_APPICON_NAME": "AppIcon",
-    "ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME": "AccentColor",
+    # No ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: the app deliberately uses the system
+    # accent colour, and naming an asset that the catalog does not contain only produces warnings.
     "CODE_SIGN_ENTITLEMENTS": "Support/AudioNinja.entitlements",
     "CODE_SIGN_STYLE": "Automatic",
     "CURRENT_PROJECT_VERSION": "1",
