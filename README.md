@@ -54,6 +54,19 @@ run it after replacing that file.
 `scripts/vendor-lame.sh` re-downloads and re-stages the LAME sources; it verifies the upstream
 checksum and does not need to be run unless LAME is being updated.
 
+## Continuous integration
+
+`.github/workflows/ci.yml` runs the logic tests and builds for macOS, the iOS Simulator and
+iOS devices on every pull request into `main`. It also regenerates `AudioNinja.xcodeproj` and
+fails if the result differs from what is committed, so the project file cannot drift from its
+generator.
+
+CI runs on the `xcode-27` runner image. `macos-latest` is macOS 26 with Xcode 26 and cannot
+build this project, which needs the 27 SDKs and Swift 6.4.
+
+Tagging `v*` publishes a macOS build to GitHub Releases — see [RELEASING.md](RELEASING.md),
+which also covers what the published build is not (signed with a Developer ID, or notarized).
+
 ## Notes
 
 - MP3 export exists because Apple ships an MP3 decoder but no encoder. See
