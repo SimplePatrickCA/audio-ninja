@@ -1,20 +1,61 @@
-# Xcode
-build/
-DerivedData/
-*.xcuserstate
+# ---- Xcode ----------------------------------------------------------------
+# Per-user state. The shared scheme under xcshareddata/xcschemes is tracked.
 xcuserdata/
+*.xcuserstate
 *.xcscmblueprint
 *.xccheckout
 
-# Swift Package Manager
+# Build output. build/ is also where release.yml puts its derived data.
+build/
+DerivedData/
+*.xcarchive
+*.xcresult
+*.dSYM
+*.dSYM.zip
+*.ipa
+*.hmap
+
+# A clang index store once landed inside AudioNinja.xcodeproj under this name,
+# from a stray -Xcc being taken as a path. Nothing legitimate is ever called this.
+-Xcc/
+
+# ---- Swift Package Manager ------------------------------------------------
 .build/
 .swiftpm/
-Package.resolved
 
-# macOS
+# Package.resolved is deliberately NOT ignored. This is an app, so dependency
+# pins belong in the repo; there are no remote packages today, so none exists.
+
+# ---- Release artifacts ----------------------------------------------------
+# What release.yml produces, should anyone run its steps locally.
+AudioNinja-*.zip
+AudioNinja-*.zip.sha256
+
+# ---- Signing material -----------------------------------------------------
+# RELEASING.md has you export a Developer ID certificate. It goes into a
+# repository secret, never into the repo.
+*.p12
+*.cer
+*.mobileprovision
+*.provisionprofile
+AuthKey_*.p8
+.env
+
+# ---- macOS ----------------------------------------------------------------
 .DS_Store
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
 
-# Editors
+# ---- Editors --------------------------------------------------------------
 *.swp
 *.swo
 *~
+.vscode/
+.idea/
+
+# ---- Python (scripts/) ----------------------------------------------------
+__pycache__/
+*.pyc

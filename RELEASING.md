@@ -31,7 +31,8 @@ It is also arm64-only. macOS 27 dropped Intel support, so there is no second sli
 This needs an Apple Developer account, and it is the only part of publishing that
 cannot be done from what is in this repo:
 
-1. Export a **Developer ID Application** certificate as a `.p12`.
+1. Export a **Developer ID Application** certificate as a `.p12`. Keep it out of the repo;
+   `.gitignore` already refuses `*.p12`, `*.cer`, provisioning profiles and `AuthKey_*.p8`.
 2. Add repository secrets: the base64 of the `.p12`, its password, the team ID, and an
    App Store Connect API key (or an app-specific password) for notarization.
 3. In `release.yml`, import the certificate into a temporary keychain, swap
