@@ -9,8 +9,9 @@ let package = Package(
         .iOS(.v27),
     ],
     products: [
-        // Dynamic so LAME is linked as a separate, replaceable library, which is how LGPL 2.0 §6
-        // is satisfied without shipping relinkable object files. See THIRD-PARTY-LICENSES.md.
+        // Static, so LAME is statically linked into the app. A dynamic product was tried and the app
+        // failed to launch without an embed-and-sign phase. That matters for LGPL 2.0 §6 once builds
+        // are distributed; THIRD-PARTY-LICENSES.md says what switching to dynamic would take.
         .library(name: "AudioNinjaKit", targets: ["AudioNinjaKit"]),
     ],
     targets: [

@@ -13,3 +13,8 @@ Package.resolved
 
 # macOS
 .DS_Store
+
+# Editors
+*.swp
+*.swo
+*~
