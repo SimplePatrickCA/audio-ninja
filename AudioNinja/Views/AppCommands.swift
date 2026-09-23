@@ -5,20 +5,25 @@ import SwiftUI
 /// drive hardware-keyboard shortcuts.
 struct AppCommands: Commands {
     @FocusedValue(\.audioDocument) private var document
+    @FocusedValue(\.exportAudio) private var export
     @Environment(\.undoManager) private var undoManager
-    #if os(macOS)
-    @Environment(\.openWindow) private var openWindow
-    #endif
 
     @AppStorage(WaveformSettings.showsSeparateChannelsKey)
     private var showsSeparateChannels = false
 
     var body: some Commands {
-        #if os(macOS)
-        // Replaces the default Help item, which would otherwise only say that no help exists.
-        CommandGroup(replacing: .help) {
-            Button("Acknowledgements") { openWindow(id: AcknowledgementsView.windowID) }
+        CommandGroup(replacing: .importExport) {
+            Menu("Export As") {
+                ForEach(AudioContentTypes.exportable, id: \.identifier) { type in
+                    Button(AudioContentTypes.menuName(for: type)) { export?(type) }
+                }
+            }
+            .disabled(export == nil || document?.isEmpty != false)
         }
+
+        #if os(macOS)
+        // The default Help item only says that no help exists.
+        CommandGroup(replacing: .help) {}
         #endif
 
         CommandGroup(after: .toolbar) {

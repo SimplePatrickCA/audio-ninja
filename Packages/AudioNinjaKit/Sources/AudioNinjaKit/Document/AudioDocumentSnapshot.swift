@@ -19,16 +19,21 @@ public struct AudioDocumentSnapshot: Sendable {
     /// The codec the file was opened with, so saving an Apple Lossless `.m4a` keeps it lossless.
     public let sourceFormatID: AudioFormatID?
 
+    /// The opened file's name without its extension, offered as the name for an export.
+    public let sourceName: String?
+
     public init(
         original: AudioSamples,
         editList: EditList,
         peaks: PeakCache? = nil,
-        sourceFormatID: AudioFormatID? = nil
+        sourceFormatID: AudioFormatID? = nil,
+        sourceName: String? = nil
     ) {
         self.original = original
         self.editList = editList
         self.peaks = peaks
         self.sourceFormatID = sourceFormatID
+        self.sourceName = sourceName
     }
 
     /// The audio as currently edited.

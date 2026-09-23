@@ -17,8 +17,8 @@ import UniformTypeIdentifiers
 @Observable
 public final class AudioDocument: @MainActor Document {
 
-    public static var readableContentTypes: [UTType] { AudioContentTypes.readable }
-    public static var writableContentTypes: [UTType] { AudioContentTypes.writable }
+    public static var readableContentTypes: [UTType] { AudioContentTypes.editable }
+    public static var writableContentTypes: [UTType] { AudioContentTypes.editable }
 
     // MARK: - State
 
@@ -33,6 +33,9 @@ public final class AudioDocument: @MainActor Document {
 
     /// The codec the file was opened with, carried through to saving.
     @ObservationIgnored private var sourceFormatID: AudioFormatID?
+
+    /// The opened file's name without its extension; the default name for an export.
+    public private(set) var sourceName: String?
 
     /// Selected range in edited coordinates — the same space the waveform is drawn in.
     public var selection: Range<Int>?
@@ -56,6 +59,9 @@ public final class AudioDocument: @MainActor Document {
     public var channelCount: Int { original.channelCount }
     public var isEmpty: Bool { frameCount == 0 }
     public var duration: Duration { .seconds(Double(frameCount) / Swift.max(sampleRate, 1)) }
+
+    /// Whether anything has been cut since the file was opened.
+    public var hasEdits: Bool { editList != EditList(fullLength: original.frameCount) }
 
     public var hasSelection: Bool {
         guard let selection else { return false }
@@ -181,6 +187,7 @@ public final class AudioDocument: @MainActor Document {
         editList = snapshot.editList
         peaks = snapshot.peaks
         sourceFormatID = snapshot.sourceFormatID
+        sourceName = snapshot.sourceName
         selection = nil
         insertionPoint = 0
         renderedCache = nil

@@ -39,16 +39,12 @@ cannot be done from what is in this repo:
    `CODE_SIGN_IDENTITY="-"` for `"Developer ID Application"` with `DEVELOPMENT_TEAM` set,
    and add `xcrun notarytool submit --wait` followed by `xcrun stapler staple` on the zip.
 
-Two things to fix at the same time, both of which matter more once the app is public:
+One thing to fix at the same time, which matters more once the app is public:
 
 - **The bundle identifier is still `com.example.AudioNinja`**, set in
   `scripts/generate-xcodeproj.py`. It needs to be a real reverse-DNS identifier you own
   before anything is signed with a Developer ID, because the identifier is what the
   signature, the document type associations and the user's preferences are all keyed to.
-- **LAME is statically linked.** While this repo is private, a release is visible only to
-  collaborators and little turns on it. Publishing binaries publicly makes LGPL §6 apply.
-  Read [THIRD-PARTY-LICENSES.md](THIRD-PARTY-LICENSES.md), which spells out what that
-  requires.
 
 ## TestFlight and the App Store
 
@@ -68,7 +64,8 @@ Connect record covering both iOS and macOS.
 - The App Sandbox entitlements apply to macOS only. An iOS binary carrying them is rejected.
 - The iOS icon has no alpha channel, which App Store Connect rejects even when the image is
   fully opaque. `scripts/generate-app-icon.sh` strips it.
-- LAME is credited in-app, with the full LGPL text, under **Acknowledgements**.
+- No third-party code ships, so there are no licences to comply with or credit. MP3
+  encoding was removed for this reason; see the Notes in [README.md](README.md).
 
 ### Still needed, and only you can do it
 
@@ -79,17 +76,14 @@ Connect record covering both iOS and macOS.
 2. **Set the team.** Signing is Automatic, but no `DEVELOPMENT_TEAM` is committed. Pick the
    team under Signing & Capabilities in Xcode, or add `DEVELOPMENT_TEAM` to `APP_SETTINGS`
    in the generator.
-3. **Decide how LAME ships.** See "App Store distribution" in
-   [THIRD-PARTY-LICENSES.md](THIRD-PARTY-LICENSES.md). Settle this before the first upload,
-   not after.
-4. **Create the App Store Connect record** with that identifier, and fill in the name,
+3. **Create the App Store Connect record** with that identifier, and fill in the name,
    privacy policy URL, category and age rating. TestFlight external testing also needs beta
    review information: a contact and a description of what to test.
-5. **Archive and upload** from Xcode: Product ▸ Archive once with *Any iOS Device* and once
+4. **Archive and upload** from Xcode: Product ▸ Archive once with *Any iOS Device* and once
    with *My Mac*, then Distribute App ▸ App Store Connect from the Organizer. Every upload
    needs a higher `CURRENT_PROJECT_VERSION` than the one before, for the same
    `MARKETING_VERSION`.
-6. Upload with the **release** Xcode 27, not a beta. App Store Connect refuses builds from
+5. Upload with the **release** Xcode 27, not a beta. App Store Connect refuses builds from
    beta toolchains.
 
 Automating the upload in CI would need the same certificate secrets as the Developer ID

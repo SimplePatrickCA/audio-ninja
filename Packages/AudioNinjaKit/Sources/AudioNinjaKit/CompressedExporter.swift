@@ -34,6 +34,23 @@ public enum CompressedExportError: Error, LocalizedError, Sendable {
 /// These exist so that a file opened as `.m4a` or `.flac` can be saved back in place. Without them
 /// an edited voice memo could not be saved at all on iOS, which has no Save As.
 public enum CompressedExporter {
+    /// The rates Apple's AAC encoder accepts: the MPEG set. It rejects 96 kHz outright (measured on
+    /// macOS 27), so anything outside this list is resampled first.
+    public static let aacSampleRates: [Double] = [
+        8_000, 11_025, 12_000, 16_000, 22_050, 24_000, 32_000, 44_100, 48_000,
+    ]
+
+    /// The rate AAC export will use for a source at `rate`.
+    ///
+    /// Stays within a family where possible — a multiple of 48 kHz goes to 48 kHz, a multiple of
+    /// 44.1 kHz to 44.1 kHz — so the conversion is a clean integer ratio.
+    public static func aacSampleRate(for rate: Double) -> Double {
+        if aacSampleRates.contains(rate) { return rate }
+        if rate.truncatingRemainder(dividingBy: 48_000) == 0 { return 48_000 }
+        if rate.truncatingRemainder(dividingBy: 44_100) == 0 { return 44_100 }
+        return aacSampleRates.min { abs($0 - rate) < abs($1 - rate) } ?? 44_100
+    }
+
     public static func write(_ samples: AudioSamples, to url: URL, format: CompressedFormat) throws {
         guard !samples.isEmpty, samples.channelCount > 0 else { throw AudioExportError.emptyBuffer }
 
@@ -41,12 +58,11 @@ public enum CompressedExporter {
         var settings: [String: Any] = [AVFormatIDKey: format.formatID]
         switch format {
         case .aac:
-            // Apple's AAC encoder rejects anything above 48 kHz and more than two channels without
-            // an explicit layout; measured on macOS 27. It takes the same rates as MP3.
+            // More than two channels needs an explicit channel layout, which nothing here builds.
             guard samples.channelCount <= 2 else {
                 throw CompressedExportError.tooManyChannels(samples.channelCount)
             }
-            source = try samples.resampled(to: MP3Exporter.targetSampleRate(for: samples.sampleRate))
+            source = try samples.resampled(to: aacSampleRate(for: samples.sampleRate))
             // A quality target rather than a fixed bit rate: a fixed rate is invalid at low sample
             // rates (256 kbit/s at 22.05 kHz fails outright).
             settings[AVEncoderAudioQualityKey] = AVAudioQuality.high.rawValue

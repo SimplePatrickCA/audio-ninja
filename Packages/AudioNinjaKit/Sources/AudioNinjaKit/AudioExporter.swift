@@ -9,10 +9,8 @@ public enum SampleDepth: Sendable, CaseIterable {
     case float32
 }
 
-/// A container the app can write.
-///
-/// MP3 is deliberately absent here: Apple ships an MP3 decoder but no MP3 encoder on either
-/// platform, so it is handled separately by `MP3Exporter` via the vendored LAME sources.
+/// An uncompressed container the app can write. Compressed formats go through
+/// `CompressedExporter`.
 public enum AudioFileFormat: String, Sendable, CaseIterable {
     case wav
     case aiff

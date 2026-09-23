@@ -3,20 +3,23 @@ import UniformTypeIdentifiers
 
 /// Identifiers resolved against the running system rather than assumed — WAV, for instance, is
 /// `com.microsoft.waveform-audio`, not `public.wav`.
-enum AudioContentTypes {
+public enum AudioContentTypes {
     static let caf = UTType("com.apple.coreaudio-format") ?? .audio
     static let flac = UTType("org.xiph.flac") ?? .audio
     static let m4a = UTType("com.apple.m4a-audio") ?? .audio
 
-    /// Everything Core Audio can decode for us.
-    static let readable: [UTType] = [
-        .wav, .aiff, .mp3, .mpeg4Audio, m4a, caf, flac,
-    ]
+    /// Types that open for editing and save back in place. Readable and writable are the same
+    /// list on purpose: iOS has no Save As, so a type that opened but could not be written back
+    /// would leave an edited file with no way to save it.
+    static let editable: [UTType] = [.wav, .aiff, .mpeg4Audio, m4a, caf, flac]
 
-    /// Everything we can encode — the same as `readable`, so any file that opens can be saved
-    /// back in place. That matters most on iOS, which has no Save As to escape to. MP3 is here
-    /// because LAME is vendored; Apple provides no MP3 encoder.
-    static let writable: [UTType] = readable
+    /// Types that open in a viewer: fully editable in memory, kept by exporting, never saved in
+    /// place. Only MP3. Apple ships an MP3 decoder but no encoder, and the only MP3 encoders
+    /// available (LAME, Shine) are LGPL, which the app deliberately does not ship.
+    public static let viewable: [UTType] = [.mp3]
+
+    /// What Export offers, in menu order.
+    public static let exportable: [UTType] = [m4a, .wav, .aiff, flac, caf]
 
     /// Maps a content type onto the uncompressed container `AudioExporter` writes.
     static func fileFormat(for type: UTType) -> AudioFileFormat? {
@@ -36,5 +39,8 @@ enum AudioContentTypes {
         return nil
     }
 
-    static func isMP3(_ type: UTType) -> Bool { type.conforms(to: .mp3) }
+    /// A short, familiar name for a menu: "M4A" rather than "Apple MPEG-4 audio".
+    public static func menuName(for type: UTType) -> String {
+        type.preferredFilenameExtension?.uppercased() ?? type.localizedDescription ?? type.identifier
+    }
 }

@@ -7,7 +7,7 @@ struct AudioNinjaApp: App {
         // allowCreating: false — an audio editor has nothing meaningful to make from nothing, and
         // every view would otherwise need an empty-document path.
         DocumentGroup(allowCreating: false) { document in
-            EditorView(document: document)
+            EditorView(document: document, savesInPlace: true)
         } makeDocument: { configuration, context in
             AudioDocument()
         }
@@ -17,11 +17,16 @@ struct AudioNinjaApp: App {
         .windowResizability(.contentMinSize)
         #endif
 
-        #if os(macOS)
-        Window("Acknowledgements", id: AcknowledgementsView.windowID) {
-            AcknowledgementsView()
+        // MP3 opens here instead. The app has no MP3 encoder, so an MP3 is edited in memory and
+        // kept by exporting; a viewer is never autosaved, so no save is ever attempted that would
+        // be bound to fail.
+        DocumentGroup { (document: AudioViewerDocument) in
+            EditorView(document: document.audio, savesInPlace: false)
+        } makeReadableDocument: { configuration, context in
+            AudioViewerDocument()
         }
-        .defaultSize(width: 560, height: 560)
+        #if os(macOS)
+        .defaultSize(width: 1_000, height: 560)
         .windowResizability(.contentMinSize)
         #endif
     }

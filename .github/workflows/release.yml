@@ -127,12 +127,6 @@ jobs:
           \`\`\`
           $CHECKSUM  $NAME
           \`\`\`
-
-          ### Third-party code
-
-          Bundles the LAME MP3 encoder (LGPL-2.0-or-later), statically linked.
-          Read [THIRD-PARTY-LICENSES.md](${{ github.server_url }}/${{ github.repository }}/blob/main/THIRD-PARTY-LICENSES.md)
-          before redistributing this build.
           NOTES
 
           gh release create "$GITHUB_REF_NAME" \

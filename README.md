@@ -12,9 +12,11 @@ Built with Swift 6.4 and SwiftUI, targeting macOS 27 and iOS 27.
 - Click to place the cursor, drag to select. Play starts from the selection, or from the cursor,
   or from the beginning if neither is set
 - **Trim to selection** and **delete selection**, with unlimited undo and redo
-- Saves as WAV, AIFF, CAF, MP3, M4A and FLAC — every format it opens, so an edited file can always
-  be saved back in place (iOS has no Save As to fall back on). An M4A opened as Apple Lossless is
-  saved as Apple Lossless; otherwise M4A means AAC
+- Saves WAV, AIFF, CAF, M4A and FLAC back in place. An M4A opened as Apple Lossless is saved as
+  Apple Lossless; otherwise M4A means AAC
+- **Export As** (the ••• menu, or File ▸ Export As on macOS) writes a copy as M4A, WAV, AIFF, FLAC
+  or CAF
+- MP3 opens, plays and edits in full, but cannot be saved as MP3 — export it instead. See below
 
 Editing is non-destructive. The decoded file is never modified; an edit list records which ranges
 of it survive, so a cut is a few integers rather than a copy of the audio, and undo is effectively
@@ -26,8 +28,7 @@ never adjacent is audible as a click.
 ```
 AudioNinja/                  SwiftUI views and the app scene
 Packages/AudioNinjaKit/      all the logic — audio, editing, the document model
-  Sources/CLame/             vendored LAME MP3 encoder (see THIRD-PARTY-LICENSES.md)
-scripts/                     project generation and LAME vendoring
+scripts/                     project and app-icon generation
 Support/                     Info.plist, entitlements and the icon master
 ```
 
@@ -53,8 +54,6 @@ when targets or build settings change.
 `scripts/generate-app-icon.sh` rebuilds the app icon from `Support/AppIcon-Source-1024.png`;
 run it after replacing that file.
 
-`scripts/vendor-lame.sh` re-downloads and re-stages the LAME sources; it verifies the upstream
-checksum and does not need to be run unless LAME is being updated.
 
 ## Continuous integration
 
@@ -72,11 +71,13 @@ and what is still needed for TestFlight and the App Store.
 
 ## Notes
 
-- MP3 export exists because Apple ships an MP3 decoder but no encoder. See
-  [THIRD-PARTY-LICENSES.md](THIRD-PARTY-LICENSES.md) — **read it before distributing the app.**
-- MP3 and AAC support a fixed set of sample rates; anything else (96 kHz and the like) is
-  resampled to 48 kHz or 44.1 kHz before encoding. Both are mono or stereo only.
-- LAME is credited, with its licence in full, under **Acknowledgements** (the ••• menu on both
-  platforms, and the Help menu on macOS).
+- **No third-party code.** Everything is built on Apple's frameworks. That is why there is no MP3
+  export: Apple ships an MP3 decoder but no encoder, and the MP3 encoders that exist (LAME,
+  Shine) are LGPL. The LGPL's terms sit uneasily with App Store distribution, so the app ships none.
+  An MP3 therefore opens in a viewer window, which is never saved in place; everything else
+  works, and a banner says to use Export to keep the result. Don't add an LGPL or GPL dependency
+  without revisiting this.
+- AAC supports a fixed set of sample rates; anything else (96 kHz and the like) is resampled to
+  48 kHz or 44.1 kHz first. AAC export is mono or stereo only.
 - Files are decoded fully into memory, with a 512 MB ceiling (~45 minutes of 48 kHz stereo).
   Longer files are refused with a clear message rather than risking an out-of-memory kill.

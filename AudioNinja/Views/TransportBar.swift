@@ -1,5 +1,6 @@
 import AudioNinjaKit
 import SwiftUI
+import UniformTypeIdentifiers
 
 /// The floating controls: transport on the left, cut actions on the right.
 ///
@@ -10,16 +11,12 @@ import SwiftUI
 /// `glassEffectID` when a selection appears.
 struct TransportBar: View {
     @Bindable var document: AudioDocument
+    let export: (UTType) -> Void
     @Environment(\.undoManager) private var undoManager
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     @AppStorage(WaveformSettings.showsSeparateChannelsKey)
     private var showsSeparateChannels = false
     @Namespace private var glass
-    #if os(macOS)
-    @Environment(\.openWindow) private var openWindow
-    #else
-    @State private var showsAcknowledgements = false
-    #endif
 
     var body: some View {
         GlassEffectContainer(spacing: 18) {
@@ -79,13 +76,13 @@ struct TransportBar: View {
             Menu {
                 Toggle("Show Separate Channels", isOn: $showsSeparateChannels)
                 Divider()
-                Button("Acknowledgements", systemImage: "info.circle") {
-                    #if os(macOS)
-                    openWindow(id: AcknowledgementsView.windowID)
-                    #else
-                    showsAcknowledgements = true
-                    #endif
+                // Also in the macOS File menu. On iOS this is the only way to change format.
+                Menu("Export As", systemImage: "square.and.arrow.up") {
+                    ForEach(AudioContentTypes.exportable, id: \.identifier) { type in
+                        Button(AudioContentTypes.menuName(for: type)) { export(type) }
+                    }
                 }
+                .disabled(document.isEmpty)
             } label: {
                 Label("Options", systemImage: "ellipsis")
                     .labelStyle(.iconOnly)
@@ -95,12 +92,7 @@ struct TransportBar: View {
             .buttonStyle(.glass)
             .menuIndicator(.hidden)
             .focusable(false)
-            .help("Display options")
-            #if os(iOS)
-            .sheet(isPresented: $showsAcknowledgements) {
-                AcknowledgementsView()
-            }
-            #endif
+            .help("Display and export options")
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 8)
@@ -139,7 +131,7 @@ struct TransportBar: View {
     }
 }
 
-private extension View {
+extension View {
     /// Glass normally, an opaque capsule when the viewer has asked for reduced transparency.
     /// Treated as a required path rather than polish: glass over a full-scale waveform can fail
     /// contrast, and this is the fallback that keeps the controls legible.

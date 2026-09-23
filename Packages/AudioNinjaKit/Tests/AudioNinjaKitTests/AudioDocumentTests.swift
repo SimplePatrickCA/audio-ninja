@@ -239,30 +239,28 @@ struct AudioDocumentWriteTests {
         #expect(reloaded.sampleRate == 48_000)
     }
 
-    @Test("Saving as MP3 goes through LAME and reloads")
-    func savesAsMP3() async throws {
+    /// Apple has no MP3 encoder and the app ships no LGPL code, so MP3 is never a save target.
+    @Test("Saving as MP3 is refused with a message that points at Export")
+    func refusesMP3() async throws {
         let directory = try makeScratch()
         defer { try? FileManager.default.removeItem(at: directory) }
 
         let snapshot = AudioDocumentSnapshot(
-            original: AudioSamples(
-                sampleRate: 44_100,
-                channels: [(0..<44_100).map { Float(sin(2 * .pi * 1_000 * Double($0) / 44_100)) * 0.5 }]
-            ),
-            editList: EditList(fullLength: 44_100)
+            original: AudioSamples.silence(sampleRate: 44_100, channelCount: 1, frameCount: 100),
+            editList: EditList(fullLength: 100)
         )
-        let destination = directory.appendingPathComponent("out.mp3")
         let progress = ProgressManager(totalCount: 1)
-        try await AudioDocumentWriter(contentType: .mp3).write(
-            snapshot: snapshot,
-            to: destination,
-            previous: nil,
-            progress: progress.subprogress(assigningCount: 1)
-        )
-
-        let reloaded = try AudioLoader.load(from: destination)
-        #expect(reloaded.channelCount == 1)
-        #expect(abs(reloaded.frameCount - 44_100) < 3_000)
+        do {
+            try await AudioDocumentWriter(contentType: .mp3).write(
+                snapshot: snapshot,
+                to: directory.appendingPathComponent("out.mp3"),
+                previous: nil,
+                progress: progress.subprogress(assigningCount: 1)
+            )
+            Issue.record("MP3 was written")
+        } catch let error as AudioDocumentError {
+            #expect(error.errorDescription?.contains("Export") == true)
+        }
     }
 
     @Test("Writing a format we have no encoder for fails with a usable message")
@@ -289,10 +287,14 @@ struct AudioDocumentWriteTests {
     /// iOS has no Save As, so a type that opens but cannot be written back leaves an edited file
     /// with no way to save it.
     @Test("Every readable type can be saved back in place")
+    @MainActor
     func everyReadableTypeIsWritable() {
-        for type in AudioContentTypes.readable {
-            #expect(AudioContentTypes.writable.contains(type))
+        for type in AudioDocument.readableContentTypes {
+            #expect(AudioDocument.writableContentTypes.contains(type))
         }
+        // MP3 opens through the viewer instead, which is never saved in place.
+        #expect(!AudioDocument.readableContentTypes.contains(.mp3))
+        #expect(AudioViewerDocument.readableContentTypes == [.mp3])
     }
 
     @Test("Saving an edited M4A or FLAC reloads at the edited length", arguments: ["m4a", "flac"])

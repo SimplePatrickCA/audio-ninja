@@ -52,8 +52,8 @@ extension AudioSamples {
     }
 
     /// These samples at `rate`, converted with `AVAudioConverter`. Returns `self` unchanged when
-    /// the rate already matches. Used ahead of the MP3 and AAC encoders, which accept only the
-    /// MPEG sample rates.
+    /// the rate already matches. Used ahead of the AAC encoder, which accepts only the MPEG sample
+    /// rates.
     public func resampled(to rate: Double) throws -> AudioSamples {
         if rate == sampleRate { return self }
         let failure = ResamplingError(from: sampleRate, to: rate)
