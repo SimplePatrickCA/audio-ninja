@@ -37,6 +37,15 @@ jobs:
             exit 1
           fi
 
+      # The app bundles a copy of LAME's licence for its Acknowledgements screen. The LGPL
+      # requires the shipped text to be the real one, so the copy must not drift.
+      - name: Fail if the bundled LAME licence differs from the vendored one
+        run: |
+          if ! cmp -s Packages/AudioNinjaKit/Sources/CLame/LICENSE AudioNinja/Resources/LAME-LICENSE.txt; then
+            echo "::error file=AudioNinja/Resources/LAME-LICENSE.txt::Does not match Packages/AudioNinjaKit/Sources/CLame/LICENSE. Re-run scripts/vendor-lame.sh."
+            exit 1
+          fi
+
   # One job rather than a matrix: each job pays its own runner start-up, and on a
   # private repo every macOS minute is billed. Steps still report failures individually.
   macos:

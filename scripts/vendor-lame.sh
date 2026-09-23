@@ -53,6 +53,8 @@ cp "${SRC}/libmp3lame/vector/lame_intrin.h" "${DEST}/src/vector/lame_intrin.h"
 
 cp "${SRC}/include/lame.h" "${DEST}/include/lame.h"
 cp "${SRC}/COPYING" "${DEST}/LICENSE"
+# The app shows this text on its Acknowledgements screen, so it ships in the bundle too.
+cp "${SRC}/COPYING" "${REPO_ROOT}/AudioNinja/Resources/LAME-LICENSE.txt"
 cp "${SRC}/LICENSE" "${DEST}/LICENSE.LAME-NOTE"
 
 cat > "${DEST}/VENDOR.txt" <<EOF

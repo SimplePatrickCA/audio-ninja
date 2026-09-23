@@ -15,6 +15,11 @@ struct TransportBar: View {
     @AppStorage(WaveformSettings.showsSeparateChannelsKey)
     private var showsSeparateChannels = false
     @Namespace private var glass
+    #if os(macOS)
+    @Environment(\.openWindow) private var openWindow
+    #else
+    @State private var showsAcknowledgements = false
+    #endif
 
     var body: some View {
         GlassEffectContainer(spacing: 18) {
@@ -73,6 +78,14 @@ struct TransportBar: View {
             // Also reachable from the macOS View menu; this is how iOS gets at it.
             Menu {
                 Toggle("Show Separate Channels", isOn: $showsSeparateChannels)
+                Divider()
+                Button("Acknowledgements", systemImage: "info.circle") {
+                    #if os(macOS)
+                    openWindow(id: AcknowledgementsView.windowID)
+                    #else
+                    showsAcknowledgements = true
+                    #endif
+                }
             } label: {
                 Label("Options", systemImage: "ellipsis")
                     .labelStyle(.iconOnly)
@@ -83,6 +96,11 @@ struct TransportBar: View {
             .menuIndicator(.hidden)
             .focusable(false)
             .help("Display options")
+            #if os(iOS)
+            .sheet(isPresented: $showsAcknowledgements) {
+                AcknowledgementsView()
+            }
+            #endif
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 8)

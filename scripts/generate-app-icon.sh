@@ -21,7 +21,34 @@ dimensions=$(sips -g pixelWidth -g pixelHeight "${SOURCE}" | awk '/pixel(Width|H
 rm -rf "${DEST}"
 mkdir -p "${DEST}"
 
-cp "${SOURCE}" "${DEST}/icon-1024.png"
+# App Store Connect rejects an iOS icon that has an alpha channel at all, even a fully opaque one,
+# so the iOS image is re-encoded without one. sips cannot drop alpha, hence Core Graphics.
+swift - "${SOURCE}" "${DEST}/icon-1024.png" <<'SWIFT'
+import CoreGraphics
+import Foundation
+import ImageIO
+import UniformTypeIdentifiers
+
+let arguments = CommandLine.arguments
+let input = URL(fileURLWithPath: arguments[1]) as CFURL
+let output = URL(fileURLWithPath: arguments[2]) as CFURL
+guard
+    let source = CGImageSourceCreateWithURL(input, nil),
+    let image = CGImageSourceCreateImageAtIndex(source, 0, nil),
+    let context = CGContext(
+        data: nil, width: image.width, height: image.height, bitsPerComponent: 8, bytesPerRow: 0,
+        space: image.colorSpace ?? CGColorSpace(name: CGColorSpace.sRGB)!,
+        bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue
+    )
+else { fatalError("could not read \(arguments[1])") }
+context.draw(image, in: CGRect(x: 0, y: 0, width: image.width, height: image.height))
+guard
+    let opaque = context.makeImage(),
+    let destination = CGImageDestinationCreateWithURL(output, UTType.png.identifier as CFString, 1, nil)
+else { fatalError("could not write \(arguments[2])") }
+CGImageDestinationAddImage(destination, opaque, nil)
+guard CGImageDestinationFinalize(destination) else { fatalError("could not write \(arguments[2])") }
+SWIFT
 
 # macOS: point size and scale, so the pixel size is point x scale.
 for entry in "16 1 16" "16 2 32" "32 1 32" "32 2 64" "128 1 128" "128 2 256" \

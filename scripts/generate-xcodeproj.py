@@ -74,7 +74,9 @@ APP_SETTINGS = {
     "ASSETCATALOG_COMPILER_APPICON_NAME": "AppIcon",
     # No ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: the app deliberately uses the system
     # accent colour, and naming an asset that the catalog does not contain only produces warnings.
-    "CODE_SIGN_ENTITLEMENTS": "Support/AudioNinja.entitlements",
+    # macOS only. The file holds the App Sandbox keys, which are meaningless on iOS and which App
+    # Store Connect rejects in an iOS binary.
+    '"CODE_SIGN_ENTITLEMENTS[sdk=macosx*]"': "Support/AudioNinja.entitlements",
     "CODE_SIGN_STYLE": "Automatic",
     "CURRENT_PROJECT_VERSION": "1",
     "ENABLE_HARDENED_RUNTIME": "YES",
@@ -82,7 +84,27 @@ APP_SETTINGS = {
     "GENERATE_INFOPLIST_FILE": "YES",
     "INFOPLIST_FILE": "Support/AudioNinja-Info.plist",
     "INFOPLIST_KEY_CFBundleDisplayName": "\"Audio Ninja\"",
+    "INFOPLIST_KEY_LSApplicationCategoryType": '"public.app-category.music"',
     "INFOPLIST_KEY_NSHumanReadableCopyright": '""',
+    # iOS keys, as Xcode's multiplatform Document App template sets them. Without the orientation
+    # lists App Store Connect refuses an iPad build (iPad multitasking needs all four), and without
+    # UISupportsDocumentBrowser the files the app opens are not declared as edited in place.
+    '"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]"': "YES",
+    '"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]"': "YES",
+    '"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]"': "YES",
+    '"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphonesimulator*]"': "YES",
+    '"INFOPLIST_KEY_UILaunchScreen_Generation[sdk=iphoneos*]"': "YES",
+    '"INFOPLIST_KEY_UILaunchScreen_Generation[sdk=iphonesimulator*]"': "YES",
+    '"INFOPLIST_KEY_UISupportsDocumentBrowser[sdk=iphoneos*]"': "YES",
+    '"INFOPLIST_KEY_UISupportsDocumentBrowser[sdk=iphonesimulator*]"': "YES",
+    "INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad": (
+        '"UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown '
+        'UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight"'
+    ),
+    "INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone": (
+        '"UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft '
+        'UIInterfaceOrientationLandscapeRight"'
+    ),
     "MARKETING_VERSION": "1.0",
     "PRODUCT_BUNDLE_IDENTIFIER": BUNDLE_ID,
     "PRODUCT_NAME": '"$(TARGET_NAME)"',

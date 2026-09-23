@@ -6,11 +6,21 @@ import SwiftUI
 struct AppCommands: Commands {
     @FocusedValue(\.audioDocument) private var document
     @Environment(\.undoManager) private var undoManager
+    #if os(macOS)
+    @Environment(\.openWindow) private var openWindow
+    #endif
 
     @AppStorage(WaveformSettings.showsSeparateChannelsKey)
     private var showsSeparateChannels = false
 
     var body: some Commands {
+        #if os(macOS)
+        // Replaces the default Help item, which would otherwise only say that no help exists.
+        CommandGroup(replacing: .help) {
+            Button("Acknowledgements") { openWindow(id: AcknowledgementsView.windowID) }
+        }
+        #endif
+
         CommandGroup(after: .toolbar) {
             Toggle("Show Separate Channels", isOn: $showsSeparateChannels)
                 .keyboardShortcut("l", modifiers: [.command, .shift])

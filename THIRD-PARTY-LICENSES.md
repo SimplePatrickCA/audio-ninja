@@ -26,21 +26,45 @@ patch a compiler warning away.
 `scripts/vendor-lame.sh` reproduces the vendored tree exactly from the upstream tarball, and
 records what is excluded and why in `Sources/CLame/VENDOR.txt`.
 
+The LAME target compiles with `-w`. That silences upstream's warnings without touching its
+sources.
+
+### What the app already does
+
+- **Acknowledges LAME, with the licence in full.** It shows under **Acknowledgements**,
+  reached from the ••• menu on both platforms and from the Help menu on macOS. The LGPL
+  requires distributed copies to carry the licence text, and LAME asks for credit with a link
+  to <https://lame.sourceforge.io/>. The text ships as `AudioNinja/Resources/LAME-LICENSE.txt`,
+  a byte-for-byte copy of `Sources/CLame/LICENSE`, and CI fails if the two drift apart.
+- **Links to the exact upstream source** it was built from.
+
 ### Before distributing this app, read this
 
-LAME is currently **statically linked**. That is fine for personal use, and it is what works today:
-a SwiftPM dynamic-library product was tried and, while it compiles, the resulting app fails to
-launch because the hand-written `project.pbxproj` has no embed-and-sign phase for it.
+LAME is currently **statically linked** into the app binary. For personal use that does not
+matter. Once binaries are distributed, LGPL §6 requires that a recipient be able to relink the
+app against a modified LAME.
 
-If you distribute the app, LGPL §6 requires that a recipient be able to relink it against a
-modified LAME. With static linking that means shipping the object files needed to relink, which is
-awkward. The cleaner route is to link LAME dynamically, which needs:
+Making the `AudioNinjaKit` product dynamic would **not** be enough on its own. LAME is compiled
+into `AudioNinjaKit`, so it would still be inseparable from this project's code, just inside a
+framework instead of the executable. A real separation needs `CLame` as its own dynamic
+framework, embedded and signed by the app target. The hand-written `project.pbxproj` has no
+embed phase today; the first attempt at a dynamic product built but failed to launch for that
+reason.
 
-1. `.library(name: "AudioNinjaKit", type: .dynamic, ...)` in `Packages/AudioNinjaKit/Package.swift`, and
-2. a Copy Files (Embed Frameworks) build phase in `scripts/generate-xcodeproj.py` that embeds and
-   signs the resulting dylib at `Contents/Frameworks` with an `@rpath` entry.
+### App Store distribution
 
-Step 2 is not done. Until it is, treat this as a personal-use build.
+This is a legal question rather than an engineering one, and it is yours to decide, ideally
+with advice. The App Store's terms add usage restrictions and FairPlay encryption that the
+LGPL's "no further restrictions" clause arguably conflicts with, and on iOS a user cannot
+practically relink an installed app however LAME is linked. Plenty of App Store apps ship LGPL
+libraries anyway, usually dynamically linked, with the licence shown in-app and the source
+offered. There is no settled answer. The realistic options:
 
-Whichever route is taken, LAME asks that its use be acknowledged with a link to
-<https://lame.sourceforge.io/>. There is no patent issue: the MP3 patents expired by 2017.
+1. **Ship as is**, statically linked, with the in-app credit and licence, and offer the object
+   files needed to relink on request.
+2. **Move LAME into its own dynamic framework** (above), then ship with the same credit and
+   licence. This is the most common approach in practice.
+3. **Leave MP3 export out of the App Store build.** This removes LAME and the question
+   entirely. Opening MP3 files would still work, because decoding uses Apple's own decoder.
+
+There is no patent issue: the MP3 patents expired by 2017.

@@ -12,7 +12,9 @@ Built with Swift 6.4 and SwiftUI, targeting macOS 27 and iOS 27.
 - Click to place the cursor, drag to select. Play starts from the selection, or from the cursor,
   or from the beginning if neither is set
 - **Trim to selection** and **delete selection**, with unlimited undo and redo
-- Saves as WAV, AIFF, CAF or MP3
+- Saves as WAV, AIFF, CAF, MP3, M4A and FLAC — every format it opens, so an edited file can always
+  be saved back in place (iOS has no Save As to fall back on). An M4A opened as Apple Lossless is
+  saved as Apple Lossless; otherwise M4A means AAC
 
 Editing is non-destructive. The decoded file is never modified; an edit list records which ranges
 of it survive, so a cut is a few integers rather than a copy of the audio, and undo is effectively
@@ -26,7 +28,7 @@ AudioNinja/                  SwiftUI views and the app scene
 Packages/AudioNinjaKit/      all the logic — audio, editing, the document model
   Sources/CLame/             vendored LAME MP3 encoder (see THIRD-PARTY-LICENSES.md)
 scripts/                     project generation and LAME vendoring
-Support/                     Info.plist and entitlements
+Support/                     Info.plist, entitlements and the icon master
 ```
 
 The logic lives in a local Swift package so it builds and tests in seconds without Xcode, a
@@ -65,13 +67,16 @@ CI runs on the `xcode-27` runner image. `macos-latest` is macOS 26 with Xcode 26
 build this project, which needs the 27 SDKs and Swift 6.4.
 
 Tagging `v*` publishes a macOS build to GitHub Releases — see [RELEASING.md](RELEASING.md),
-which also covers what the published build is not (signed with a Developer ID, or notarized).
+which also covers what the published build is not (signed with a Developer ID, or notarized),
+and what is still needed for TestFlight and the App Store.
 
 ## Notes
 
 - MP3 export exists because Apple ships an MP3 decoder but no encoder. See
   [THIRD-PARTY-LICENSES.md](THIRD-PARTY-LICENSES.md) — **read it before distributing the app.**
-- MP3 supports a fixed set of sample rates; anything else (96 kHz and the like) is resampled to
-  48 kHz or 44.1 kHz before encoding.
+- MP3 and AAC support a fixed set of sample rates; anything else (96 kHz and the like) is
+  resampled to 48 kHz or 44.1 kHz before encoding. Both are mono or stereo only.
+- LAME is credited, with its licence in full, under **Acknowledgements** (the ••• menu on both
+  platforms, and the Help menu on macOS).
 - Files are decoded fully into memory, with a 512 MB ceiling (~45 minutes of 48 kHz stereo).
   Longer files are refused with a clear message rather than risking an out-of-memory kill.
