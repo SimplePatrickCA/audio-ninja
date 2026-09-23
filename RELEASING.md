@@ -39,12 +39,11 @@ cannot be done from what is in this repo:
    `CODE_SIGN_IDENTITY="-"` for `"Developer ID Application"` with `DEVELOPMENT_TEAM` set,
    and add `xcrun notarytool submit --wait` followed by `xcrun stapler staple` on the zip.
 
-One thing to fix at the same time, which matters more once the app is public:
+One thing to keep in mind, which matters more once the app is public:
 
-- **The bundle identifier is still `com.example.AudioNinja`**, set in
-  `scripts/generate-xcodeproj.py`. It needs to be a real reverse-DNS identifier you own
-  before anything is signed with a Developer ID, because the identifier is what the
-  signature, the document type associations and the user's preferences are all keyed to.
+- **The bundle identifier** is `com.simplepatrick.AudioNinja`, set in
+  `scripts/generate-xcodeproj.py`. The signature, the document type associations and the
+  user's preferences are all keyed to it, so it should not change once builds are public.
 
 ## TestFlight and the App Store
 
@@ -69,13 +68,16 @@ Connect record covering both iOS and macOS.
 
 ### Still needed, and only you can do it
 
-1. **Choose the bundle identifier.** It is still `com.example.AudioNinja`, set as
-   `BUNDLE_ID` in `scripts/generate-xcodeproj.py`. Change it, run the script, and commit
-   the regenerated project. Once a build is uploaded the identifier is permanent for that
-   App Store record.
-2. **Set the team.** Signing is Automatic, but no `DEVELOPMENT_TEAM` is committed. Pick the
-   team under Signing & Capabilities in Xcode, or add `DEVELOPMENT_TEAM` to `APP_SETTINGS`
-   in the generator.
+1. **Register one iPhone or iPad with the team** (connect it to this Mac with Xcode open,
+   or add its UDID under Certificates, Identifiers & Profiles). Automatic signing signs an
+   archive with a development profile first and switches to distribution at upload, and
+   Xcode cannot make a development profile for a team with no devices. Until then the
+   iOS archive fails with "Your team has no devices". The Mac archive is unaffected.
+2. **Keep the bundle identifier and team in the generator.** They are
+   `com.simplepatrick.AudioNinja` and team `XJ77XT4Z9Y`, set as `BUNDLE_ID` and `TEAM_ID` in
+   `scripts/generate-xcodeproj.py`. The identifier is permanent once a build is uploaded.
+   The generator writes the project exactly as Xcode saves it, so changing a setting in
+   Xcode's editor is fine, but copy the change into the generator or CI's drift check fails.
 3. **Create the App Store Connect record** with that identifier, and fill in the name,
    privacy policy URL, category and age rating. TestFlight external testing also needs beta
    review information: a contact and a description of what to test.

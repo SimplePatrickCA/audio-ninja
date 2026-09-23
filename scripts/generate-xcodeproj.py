@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
 """Generate AudioNinja.xcodeproj/project.pbxproj.
 
+The output matches Xcode's own serialisation: the same key order, quoting and object order Xcode
+writes when it saves. Opening the project and saving it therefore changes nothing, and CI's drift
+check only catches real differences. A setting changed in Xcode's editor must be copied here.
+
 Hand-maintaining a pbxproj is unpleasant, and neither xcodegen nor tuist is installed. This
 generator keeps the file reproducible and reviewable: the project is small (one multiplatform app
 target plus a local package reference), and because the app's sources live in a
@@ -14,7 +18,8 @@ import sys
 OBJECT_VERSION = sys.argv[1] if len(sys.argv) > 1 else "77"
 
 APP = "AudioNinja"
-BUNDLE_ID = "com.example.AudioNinja"
+BUNDLE_ID = "com.simplepatrick.AudioNinja"
+TEAM_ID = "XJ77XT4Z9Y"
 
 # Stable 24-hex-digit ids. Hand-assigned so regenerating produces an identical file.
 ID = {
@@ -79,11 +84,14 @@ APP_SETTINGS = {
     '"CODE_SIGN_ENTITLEMENTS[sdk=macosx*]"': "Support/AudioNinja.entitlements",
     "CODE_SIGN_STYLE": "Automatic",
     "CURRENT_PROJECT_VERSION": "1",
+    "DEVELOPMENT_TEAM": TEAM_ID,
     "ENABLE_HARDENED_RUNTIME": "YES",
     "ENABLE_PREVIEWS": "YES",
     "GENERATE_INFOPLIST_FILE": "YES",
-    "INFOPLIST_FILE": "Support/AudioNinja-Info.plist",
+    "INFOPLIST_FILE": '"Support/AudioNinja-Info.plist"',
     "INFOPLIST_KEY_CFBundleDisplayName": "\"Audio Ninja\"",
+    # The app uses no encryption beyond the OS's own, so no export-compliance question per upload.
+    "INFOPLIST_KEY_ITSAppUsesNonExemptEncryption": "NO",
     "INFOPLIST_KEY_LSApplicationCategoryType": '"public.app-category.music"',
     "INFOPLIST_KEY_NSHumanReadableCopyright": '""',
     # iOS keys, as Xcode's multiplatform Document App template sets them. Without the orientation
@@ -118,7 +126,10 @@ APP_SETTINGS = {
 
 def settings_block(pairs, indent):
     pad = "\t" * indent
-    return "".join(f"{pad}{k} = {v};\n" for k, v in sorted(pairs.items()))
+    # Xcode orders keys as if their quotes were not there.
+    return "".join(
+        f"{pad}{k} = {v};\n" for k, v in sorted(pairs.items(), key=lambda kv: kv[0].strip('"'))
+    )
 
 
 def build_config(cfg_id, name, pairs, indent=2):
@@ -156,17 +167,16 @@ def main():
     w("/* Begin PBXFileReference section */\n")
     w(f"\t\t{ID['appProduct']} /* {APP}.app */ = {{isa = PBXFileReference; "
       f"explicitFileType = wrapper.application; includeInIndex = 0; "
-      f'path = "{APP}.app"; sourceTree = BUILT_PRODUCTS_DIR; }};\n')
+      f'path = {APP}.app; sourceTree = BUILT_PRODUCTS_DIR; }};\n')
     w(f"\t\t{ID['infoPlist']} /* {APP}-Info.plist */ = {{isa = PBXFileReference; "
       f'lastKnownFileType = text.plist.xml; path = "{APP}-Info.plist"; sourceTree = "<group>"; }};\n')
     w(f"\t\t{ID['entitlements']} /* {APP}.entitlements */ = {{isa = PBXFileReference; "
-      f'lastKnownFileType = text.plist.entitlements; path = "{APP}.entitlements"; sourceTree = "<group>"; }};\n')
+      f'lastKnownFileType = text.plist.entitlements; path = {APP}.entitlements; sourceTree = "<group>"; }};\n')
     w("/* End PBXFileReference section */\n\n")
 
     w("/* Begin PBXFileSystemSynchronizedRootGroup section */\n")
     w(f"\t\t{ID['syncGroup']} /* {APP} */ = {{\n"
       f"\t\t\tisa = PBXFileSystemSynchronizedRootGroup;\n"
-      f"\t\t\texceptions = (\n\t\t\t);\n"
       f"\t\t\tpath = {APP};\n"
       f'\t\t\tsourceTree = "<group>";\n'
       f"\t\t}};\n")
@@ -191,6 +201,12 @@ def main():
       f"\t\t\t);\n"
       f'\t\t\tsourceTree = "<group>";\n'
       f"\t\t}};\n")
+    w(f"\t\t{ID['productsGroup']} /* Products */ = {{\n"
+      f"\t\t\tisa = PBXGroup;\n"
+      f"\t\t\tchildren = (\n\t\t\t\t{ID['appProduct']} /* {APP}.app */,\n\t\t\t);\n"
+      f"\t\t\tname = Products;\n"
+      f'\t\t\tsourceTree = "<group>";\n'
+      f"\t\t}};\n")
     w(f"\t\t{ID['supportGroup']} /* Support */ = {{\n"
       f"\t\t\tisa = PBXGroup;\n"
       f"\t\t\tchildren = (\n"
@@ -198,12 +214,6 @@ def main():
       f"\t\t\t\t{ID['entitlements']} /* {APP}.entitlements */,\n"
       f"\t\t\t);\n"
       f"\t\t\tpath = Support;\n"
-      f'\t\t\tsourceTree = "<group>";\n'
-      f"\t\t}};\n")
-    w(f"\t\t{ID['productsGroup']} /* Products */ = {{\n"
-      f"\t\t\tisa = PBXGroup;\n"
-      f"\t\t\tchildren = (\n\t\t\t\t{ID['appProduct']} /* {APP}.app */,\n\t\t\t);\n"
-      f"\t\t\tname = Products;\n"
       f'\t\t\tsourceTree = "<group>";\n'
       f"\t\t}};\n")
     w("/* End PBXGroup section */\n\n")
@@ -307,7 +317,7 @@ def main():
       f"\t\t\tisa = XCSwiftPackageProductDependency;\n"
       f"\t\t\tproductName = AudioNinjaKit;\n"
       f"\t\t}};\n")
-    w("/* End XCSwiftPackageProductDependency section */\n\n")
+    w("/* End XCSwiftPackageProductDependency section */\n")
 
     w("\t};\n")
     w(f"\trootObject = {ID['project']} /* Project object */;\n")
