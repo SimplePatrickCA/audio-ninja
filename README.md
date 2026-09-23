@@ -28,7 +28,7 @@ never adjacent is audible as a click.
 ```
 AudioNinja/                  SwiftUI views and the app scene
 Packages/AudioNinjaKit/      all the logic — audio, editing, the document model
-scripts/                     project and app-icon generation
+scripts/                     project and app-icon generation, App Store upload
 Support/                     Info.plist, entitlements and the icon master
 ```
 

@@ -81,10 +81,19 @@ Connect record covering both iOS and macOS.
 3. **Create the App Store Connect record** with that identifier, and fill in the name,
    privacy policy URL, category and age rating. TestFlight external testing also needs beta
    review information: a contact and a description of what to test.
-4. **Archive and upload** from Xcode: Product ▸ Archive once with *Any iOS Device* and once
-   with *My Mac*, then Distribute App ▸ App Store Connect from the Organizer. Every upload
-   needs a higher `CURRENT_PROJECT_VERSION` than the one before, for the same
-   `MARKETING_VERSION`.
+4. **Archive and upload.** Bump `CURRENT_PROJECT_VERSION` in
+   `scripts/generate-xcodeproj.py` (every upload needs a higher build number than the last
+   one for its platform), regenerate, commit, then run `scripts/upload-app-store.sh`. It
+   runs the logic tests, archives both platforms, and uploads them with the Apple account
+   signed in to Xcode, using exactly the build number in the project. Pass `iOS` or
+   `macOS` to upload one platform. Xcode's Organizer works too: archive with *Any iOS
+   Device* and with *My Mac*, then Distribute App ▸ App Store Connect.
+
+   | Build | Platforms | Notes |
+   |---|---|---|
+   | 1 | iOS, macOS | First upload, from Xcode |
+   | 2 | macOS | From Xcode |
+   | 3 | iOS, macOS | iPhone layout fix (selection pushed the controls off screen and crashed) |
 5. Upload with the **release** Xcode 27, not a beta. App Store Connect refuses builds from
    beta toolchains.
 

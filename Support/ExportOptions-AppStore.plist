@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>method</key>
+	<string>app-store-connect</string>
+	<key>destination</key>
+	<string>upload</string>
+	<key>teamID</key>
+	<string>XJ77XT4Z9Y</string>
+	<key>signingStyle</key>
+	<string>automatic</string>
+	<!-- Upload with exactly the build number in the project, so the repo records what shipped.
+	     Bump CURRENT_PROJECT_VERSION in scripts/generate-xcodeproj.py before each upload. -->
+	<key>manageAppVersionAndBuildNumber</key>
+	<false/>
+	<key>uploadSymbols</key>
+	<true/>
+</dict>
+</plist>
