@@ -93,7 +93,8 @@ Connect record covering both iOS and macOS.
    |---|---|---|
    | 1 | iOS, macOS | First upload, from Xcode |
    | 2 | macOS | From Xcode |
-   | 3 | iOS, macOS | iPhone layout fix (selection pushed the controls off screen and crashed) |
+   | 3 | iOS, macOS | iPhone layout fix (controls overflowed the screen) |
+   | 4 | iOS, macOS | One document type, MP3 read-only (build 3 crashed in SwiftUI's document cast on iOS) |
 5. Upload with the **release** Xcode 27, not a beta. App Store Connect refuses builds from
    beta toolchains.
 
