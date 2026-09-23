@@ -1,3 +1,4 @@
+import AudioToolbox
 import Foundation
 import Observation
 import SwiftUI
@@ -29,6 +30,9 @@ public final class AudioDocument: @MainActor Document {
 
     /// Peaks over `original`, computed once by the reader.
     public private(set) var peaks: PeakCache?
+
+    /// The codec the file was opened with, carried through to saving.
+    @ObservationIgnored private var sourceFormatID: AudioFormatID?
 
     /// Selected range in edited coordinates — the same space the waveform is drawn in.
     public var selection: Range<Int>?
@@ -176,6 +180,7 @@ public final class AudioDocument: @MainActor Document {
         original = snapshot.original
         editList = snapshot.editList
         peaks = snapshot.peaks
+        sourceFormatID = snapshot.sourceFormatID
         selection = nil
         insertionPoint = 0
         renderedCache = nil
@@ -184,7 +189,7 @@ public final class AudioDocument: @MainActor Document {
     }
 
     public func snapshot(contentType: UTType) async throws -> sending AudioDocumentSnapshot {
-        AudioDocumentSnapshot(original: original, editList: editList)
+        AudioDocumentSnapshot(original: original, editList: editList, sourceFormatID: sourceFormatID)
     }
 }
 

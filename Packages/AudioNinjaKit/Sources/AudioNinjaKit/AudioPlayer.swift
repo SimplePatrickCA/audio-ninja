@@ -20,10 +20,8 @@ public final class AudioPlayer {
     /// again re-schedules from the beginning of whatever range is requested.
     public private(set) var isPaused = false
 
-    /// Set when the engine fails mid-session, e.g. after an audio route change.
-    public private(set) var lastError: (any Error)?
-
-    @ObservationIgnored private let engine = AVAudioEngine()
+    /// Internal rather than private so tests can post its configuration-change notification.
+    @ObservationIgnored let engine = AVAudioEngine()
     @ObservationIgnored private let player = AVAudioPlayerNode()
     @ObservationIgnored private var samples: AudioSamples?
     @ObservationIgnored private var connectedFormat: AVAudioFormat?
@@ -40,8 +38,17 @@ public final class AudioPlayer {
     /// the playback that is running now or to one that has since been replaced.
     @ObservationIgnored private var playbackGeneration = 0
 
+    @ObservationIgnored private var observers: [any NSObjectProtocol] = []
+
     public init() {
         engine.attach(player)
+        observeSystemEvents()
+    }
+
+    isolated deinit {
+        for observer in observers {
+            NotificationCenter.default.removeObserver(observer)
+        }
     }
 
     // MARK: - Loading
@@ -167,6 +174,55 @@ public final class AudioPlayer {
             connectedFormat = format
         }
         engine.prepare()
+    }
+
+    /// Keeps the transport honest when the system, not the user, stops the audio.
+    private func observeSystemEvents() {
+        let center = NotificationCenter.default
+
+        // The engine stops itself and drops its connections when the output hardware changes:
+        // headphones unplugged, AirPods connected, another output picked on macOS. Without this
+        // the UI would go on showing Pause over silence, and the next play would use a stale
+        // connection.
+        observers.append(center.addObserver(
+            forName: .AVAudioEngineConfigurationChange,
+            object: engine,
+            queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated { self?.handleConfigurationChange() }
+        })
+
+        #if os(iOS)
+        // A phone call or another app taking the audio session. Paused rather than stopped, so
+        // play resumes from the same spot. This replaces the interruption notification, which
+        // iOS 27 deprecates.
+        observers.append(center.addObserver(
+            forName: AVAudioSession.didBecomeInactiveNotification,
+            object: AVAudioSession.sharedInstance(),
+            queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated { self?.pause() }
+        })
+
+        // Unplugging headphones should pause rather than carry on out of the speaker.
+        observers.append(center.addObserver(
+            forName: AVAudioSession.routeChangeNotification,
+            object: AVAudioSession.sharedInstance(),
+            queue: .main
+        ) { [weak self] notification in
+            let raw = notification.userInfo?[AVAudioSessionRouteChangeReasonKey] as? UInt
+            guard raw.flatMap(AVAudioSession.RouteChangeReason.init) == .oldDeviceUnavailable else {
+                return
+            }
+            MainActor.assumeIsolated { self?.pause() }
+        })
+        #endif
+    }
+
+    private func handleConfigurationChange() {
+        stop()
+        // Force the next play to reconnect the player for the new hardware.
+        connectedFormat = nil
     }
 
     private func configureSession() throws {

@@ -277,20 +277,83 @@ struct AudioDocumentWriteTests {
         let progress = ProgressManager(totalCount: 1)
 
         await #expect(throws: AudioDocumentError.self) {
-            // FLAC decodes fine but this app has no FLAC encoder wired up.
-            try await AudioDocumentWriter(contentType: AudioContentTypes.flac).write(
+            try await AudioDocumentWriter(contentType: .plainText).write(
                 snapshot: snapshot,
-                to: directory.appendingPathComponent("out.flac"),
+                to: directory.appendingPathComponent("out.txt"),
                 previous: nil,
                 progress: progress.subprogress(assigningCount: 1)
             )
         }
     }
 
-    @Test("Readable types are a superset of writable types")
-    func readableCoversWritable() {
-        for type in AudioContentTypes.writable {
-            #expect(AudioContentTypes.readable.contains(type))
+    /// iOS has no Save As, so a type that opens but cannot be written back leaves an edited file
+    /// with no way to save it.
+    @Test("Every readable type can be saved back in place")
+    func everyReadableTypeIsWritable() {
+        for type in AudioContentTypes.readable {
+            #expect(AudioContentTypes.writable.contains(type))
         }
+    }
+
+    @Test("Saving an edited M4A or FLAC reloads at the edited length", arguments: ["m4a", "flac"])
+    func savesCompressedInPlace(fileExtension: String) async throws {
+        let directory = try makeScratch()
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        let snapshot = AudioDocumentSnapshot(
+            original: AudioSamples(
+                sampleRate: 44_100,
+                channels: [(0..<44_100).map { Float(sin(2 * .pi * 440 * Double($0) / 44_100)) * 0.5 }]
+            ),
+            editList: EditList(fullLength: 44_100).deleting(0..<22_050)
+        )
+        let type = try #require(UTType(filenameExtension: fileExtension))
+        let destination = directory.appendingPathComponent("out.\(fileExtension)")
+        let progress = ProgressManager(totalCount: 1)
+        try await AudioDocumentWriter(contentType: type).write(
+            snapshot: snapshot,
+            to: destination,
+            previous: nil,
+            progress: progress.subprogress(assigningCount: 1)
+        )
+
+        let reloaded = try AudioLoader.load(from: destination)
+        #expect(abs(reloaded.frameCount - 22_050) < 2_048)
+    }
+
+    @Test("An Apple Lossless M4A is saved as Apple Lossless, not re-encoded as AAC")
+    func keepsAppleLossless() async throws {
+        let directory = try makeScratch()
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        let samples = AudioSamples(
+            sampleRate: 48_000,
+            channels: [(0..<4_800).map { Float($0 % 100) / 200 }]
+        )
+        let source = directory.appendingPathComponent("lossless.m4a")
+        try CompressedExporter.write(samples, to: source, format: .appleLossless)
+
+        let snapshot = try await AudioDocumentReader()
+            .read(from: source, progress: ProgressManager(totalCount: 1).subprogress(assigningCount: 1))
+        #expect(snapshot.sourceFormatID == kAudioFormatAppleLossless)
+
+        let destination = directory.appendingPathComponent("saved.m4a")
+        try await AudioDocumentWriter(contentType: .mpeg4Audio).write(
+            snapshot: snapshot,
+            to: destination,
+            previous: nil,
+            progress: ProgressManager(totalCount: 1).subprogress(assigningCount: 1)
+        )
+        #expect(AudioLoader.sourceFormatID(of: destination) == kAudioFormatAppleLossless)
+
+        // A fresh document with no known source codec gets AAC.
+        let aac = directory.appendingPathComponent("new.m4a")
+        try await AudioDocumentWriter(contentType: .mpeg4Audio).write(
+            snapshot: AudioDocumentSnapshot(original: samples, editList: EditList(fullLength: 4_800)),
+            to: aac,
+            previous: nil,
+            progress: ProgressManager(totalCount: 1).subprogress(assigningCount: 1)
+        )
+        #expect(AudioLoader.sourceFormatID(of: aac) == kAudioFormatMPEG4AAC)
     }
 }

@@ -25,7 +25,6 @@ public enum MP3ExportError: Error, LocalizedError, Sendable {
     case tooManyChannels(Int)
     case encoderInitFailed
     case encodeFailed(Int32)
-    case resamplingFailed(from: Double, to: Double)
 
     public var errorDescription: String? {
         switch self {
@@ -37,8 +36,6 @@ public enum MP3ExportError: Error, LocalizedError, Sendable {
             "The MP3 encoder could not be started."
         case let .encodeFailed(code):
             "MP3 encoding failed (LAME error \(code))."
-        case let .resamplingFailed(from, to):
-            "Could not resample from \(Int(from)) Hz to \(Int(to)) Hz for MP3 export."
         }
     }
 }
@@ -86,7 +83,7 @@ public enum MP3Exporter {
         }
 
         let target = targetSampleRate(for: samples.sampleRate)
-        let source = target == samples.sampleRate ? samples : try resample(samples, to: target)
+        let source = try samples.resampled(to: target)
 
         guard let gfp = lame_init() else { throw MP3ExportError.encoderInitFailed }
         defer { lame_close(gfp) }
@@ -173,41 +170,5 @@ public enum MP3Exporter {
         defer { try? handle.close() }
         try handle.seek(toOffset: 0)
         try handle.write(contentsOf: Data(tag[0..<written]))
-    }
-
-    /// Sample-rate conversion ahead of LAME, for rates MP3 cannot express (96 kHz and the like).
-    private static func resample(_ samples: AudioSamples, to rate: Double) throws -> AudioSamples {
-        let failure = MP3ExportError.resamplingFailed(from: samples.sampleRate, to: rate)
-        guard
-            let inputFormat = samples.avFormat,
-            let outputFormat = AVAudioFormat(
-                standardFormatWithSampleRate: rate,
-                channels: AVAudioChannelCount(samples.channelCount)
-            ),
-            let converter = AVAudioConverter(from: inputFormat, to: outputFormat),
-            let input = samples.makePCMBuffer()
-        else { throw failure }
-
-        let ratio = rate / samples.sampleRate
-        let capacity = AVAudioFrameCount(Double(samples.frameCount) * ratio) + 8_192
-        guard let output = AVAudioPCMBuffer(pcmFormat: outputFormat, frameCapacity: capacity) else {
-            throw failure
-        }
-
-        var supplied = false
-        var conversionError: NSError?
-        let status = converter.convert(to: output, error: &conversionError) { _, inputStatus in
-            if supplied {
-                inputStatus.pointee = .endOfStream
-                return nil
-            }
-            supplied = true
-            inputStatus.pointee = .haveData
-            return input
-        }
-
-        guard status != .error, conversionError == nil, output.frameLength > 0 else { throw failure }
-        guard let converted = AudioSamples(pcmBuffer: output) else { throw failure }
-        return converted
     }
 }

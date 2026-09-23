@@ -1,3 +1,4 @@
+import AudioToolbox
 import Foundation
 
 /// What crosses between the document and its off-main-actor reader and writer.
@@ -15,10 +16,19 @@ public struct AudioDocumentSnapshot: Sendable {
     /// peaks are irrelevant.
     public let peaks: PeakCache?
 
-    public init(original: AudioSamples, editList: EditList, peaks: PeakCache? = nil) {
+    /// The codec the file was opened with, so saving an Apple Lossless `.m4a` keeps it lossless.
+    public let sourceFormatID: AudioFormatID?
+
+    public init(
+        original: AudioSamples,
+        editList: EditList,
+        peaks: PeakCache? = nil,
+        sourceFormatID: AudioFormatID? = nil
+    ) {
         self.original = original
         self.editList = editList
         self.peaks = peaks
+        self.sourceFormatID = sourceFormatID
     }
 
     /// The audio as currently edited.

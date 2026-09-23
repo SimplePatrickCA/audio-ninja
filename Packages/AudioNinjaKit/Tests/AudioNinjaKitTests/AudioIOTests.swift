@@ -261,3 +261,64 @@ struct CompressedInputTests {
         #expect(try AudioLoader.load(from: out).frameCount == 1_000)
     }
 }
+
+@Suite("Compressed output")
+struct CompressedOutputTests {
+    @Test("Lossless formats round-trip within 24-bit resolution",
+          arguments: [CompressedFormat.appleLossless, .flac])
+    func losslessRoundTrip(format: CompressedFormat) throws {
+        let directory = try makeScratchDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        let original = sine(frames: 4_800)
+        let url = directory.appendingPathComponent(format == .flac ? "out.flac" : "out.m4a")
+        try CompressedExporter.write(original, to: url, format: format)
+
+        let reloaded = try AudioLoader.load(from: url)
+        #expect(reloaded.frameCount == original.frameCount)
+        #expect(reloaded.channelCount == 2)
+        #expect(maxDifference(reloaded.channels[1], original.channels[1]) < 1e-6)
+    }
+
+    @Test("AAC keeps the length and sample rate")
+    func aacRoundTrip() throws {
+        let directory = try makeScratchDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        let original = sine(frames: 48_000)
+        let url = directory.appendingPathComponent("out.m4a")
+        try CompressedExporter.write(original, to: url, format: .aac)
+
+        let reloaded = try AudioLoader.load(from: url)
+        #expect(reloaded.sampleRate == 48_000)
+        #expect(reloaded.frameCount == original.frameCount)
+    }
+
+    /// Apple's AAC encoder rejects 96 kHz outright.
+    @Test("AAC resamples rates the encoder refuses")
+    func aacResamples() throws {
+        let directory = try makeScratchDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        let url = directory.appendingPathComponent("hires.m4a")
+        try CompressedExporter.write(sine(frames: 96_000, sampleRate: 96_000), to: url, format: .aac)
+
+        let reloaded = try AudioLoader.load(from: url)
+        #expect(reloaded.sampleRate == 48_000)
+        #expect(abs(reloaded.frameCount - 48_000) < 64)
+    }
+
+    @Test("AAC refuses more than two channels with a specific message")
+    func aacRejectsSurround() throws {
+        let directory = try makeScratchDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        #expect(throws: CompressedExportError.self) {
+            try CompressedExporter.write(
+                sine(frames: 480, channels: 6),
+                to: directory.appendingPathComponent("surround.m4a"),
+                format: .aac
+            )
+        }
+    }
+}

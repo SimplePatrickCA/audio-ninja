@@ -9,7 +9,7 @@ public enum AudioDocumentError: Error, LocalizedError {
         switch self {
         case let .unsupportedOutputFormat(type):
             let name = type.localizedDescription ?? type.identifier
-            return "Audio Ninja cannot write \(name) files yet. Use Save As to choose WAV, AIFF or CAF."
+            return "Audio Ninja can't save \(name) files. Save a copy as WAV, AIFF, CAF, MP3, M4A or FLAC instead."
         }
     }
 }
@@ -35,7 +35,8 @@ public struct AudioDocumentReader: DocumentReader {
         return AudioDocumentSnapshot(
             original: samples,
             editList: EditList(fullLength: samples.frameCount),
-            peaks: PeakCache(samples: samples)
+            peaks: PeakCache(samples: samples),
+            sourceFormatID: AudioLoader.sourceFormatID(of: source)
         )
     }
 }
@@ -64,6 +65,11 @@ public struct AudioDocumentWriter: DocumentWriter {
             try MP3Exporter.write(rendered, to: destination)
         } else if let format = AudioContentTypes.fileFormat(for: contentType) {
             try AudioExporter.write(rendered, to: destination, format: format)
+        } else if let format = AudioContentTypes.compressedFormat(
+            for: contentType,
+            sourceFormatID: snapshot.sourceFormatID
+        ) {
+            try CompressedExporter.write(rendered, to: destination, format: format)
         } else {
             throw AudioDocumentError.unsupportedOutputFormat(contentType)
         }

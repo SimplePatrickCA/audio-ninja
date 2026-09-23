@@ -1,3 +1,4 @@
+import AudioToolbox
 import UniformTypeIdentifiers
 
 /// Identifiers resolved against the running system rather than assumed — WAV, for instance, is
@@ -12,17 +13,26 @@ enum AudioContentTypes {
         .wav, .aiff, .mp3, .mpeg4Audio, m4a, caf, flac,
     ]
 
-    /// Everything we can encode. Still narrower than `readable`: FLAC and AAC writing are not
-    /// wired up, so a file of those types opens fine but has to be saved elsewhere via Save As.
-    /// MP3 is here because LAME is vendored — Apple provides no MP3 encoder.
-    static let writable: [UTType] = [.wav, .aiff, caf, .mp3]
+    /// Everything we can encode — the same as `readable`, so any file that opens can be saved
+    /// back in place. That matters most on iOS, which has no Save As to escape to. MP3 is here
+    /// because LAME is vendored; Apple provides no MP3 encoder.
+    static let writable: [UTType] = readable
 
     /// Maps a content type onto the uncompressed container `AudioExporter` writes.
-    /// Returns nil for MP3, which goes through `MP3Exporter` instead.
     static func fileFormat(for type: UTType) -> AudioFileFormat? {
         if type.conforms(to: .wav) { return .wav }
         if type.conforms(to: .aiff) { return .aiff }
         if type.conforms(to: caf) { return .caf }
+        return nil
+    }
+
+    /// Maps a content type onto a format `CompressedExporter` writes. An MPEG-4 file stays Apple
+    /// Lossless if that is what it was opened as, rather than being quietly re-encoded as AAC.
+    static func compressedFormat(for type: UTType, sourceFormatID: AudioFormatID?) -> CompressedFormat? {
+        if type.conforms(to: flac) { return .flac }
+        if type.conforms(to: .mpeg4Audio) {
+            return sourceFormatID == kAudioFormatAppleLossless ? .appleLossless : .aac
+        }
         return nil
     }
 

@@ -127,6 +127,25 @@ struct AudioPlayerTests {
         #expect(!player.isPlaying)
     }
 
+    /// Unplugging headphones or switching output stops the engine underneath the player.
+    @Test("An output change stops playback instead of leaving the transport showing Pause")
+    @MainActor
+    func configurationChangeStops() async throws {
+        let player = AudioPlayer()
+        player.load(AudioSamples.silence(sampleRate: 48_000, channelCount: 1, frameCount: 480_000))
+        try player.play()
+        guard player.isPlaying else { return }   // no output device
+
+        NotificationCenter.default.post(name: .AVAudioEngineConfigurationChange, object: player.engine)
+        #expect(!player.isPlaying)
+        #expect(!player.isPaused)
+
+        // And the next play reconnects rather than failing.
+        try player.play()
+        #expect(player.isPlaying)
+        player.stop()
+    }
+
     @Test("Stopping an idle player is harmless")
     @MainActor
     func stopIdle() {

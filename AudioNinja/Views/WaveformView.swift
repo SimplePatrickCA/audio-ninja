@@ -16,7 +16,6 @@ struct WaveformView: View {
     private var showsSeparateChannels = false
 
     @State private var channelBins: [[Peak]] = []
-    @State private var renderedWidth: CGFloat = 0
     @State private var dragAnchor: Int?
 
     var body: some View {
@@ -56,8 +55,8 @@ struct WaveformView: View {
         .accessibilityValue(document.isEmpty ? "No audio" : document.duration.formattedTime)
     }
 
-    /// Marks the lanes as the left and right channels. Without this, a stereo file just looks like
-    /// the waveform has been drawn twice.
+    /// Names the lanes: L and R for stereo, numbers beyond that. Without this, a stereo file just
+    /// looks like the waveform has been drawn twice.
     @ViewBuilder
     private func channelLabels(in size: CGSize) -> some View {
         if showsSeparateChannels && channelBins.count > 1 {
@@ -65,7 +64,7 @@ struct WaveformView: View {
                 ForEach(Array(channelBins.indices), id: \.self) { index in
                     ZStack(alignment: .topLeading) {
                         Color.clear
-                        Text(index == 0 ? "L" : "R")
+                        Text(laneName(index, of: channelBins.count))
                             .font(.caption2.weight(.semibold))
                             .foregroundStyle(.secondary)
                             .padding(.leading, 8)
@@ -76,6 +75,10 @@ struct WaveformView: View {
             }
             .allowsHitTesting(false)
         }
+    }
+
+    private func laneName(_ index: Int, of count: Int) -> String {
+        count == 2 ? (index == 0 ? "L" : "R") : "\(index + 1)"
     }
 
     private var emptyState: some View {
@@ -168,7 +171,6 @@ struct WaveformView: View {
         } else {
             channelBins = [peaks.combinedBins(editList: document.editList, binCount: columns)]
         }
-        renderedWidth = width
     }
 }
 

@@ -3,7 +3,7 @@ import AVFoundation
 /// Conversion between the package's value type and AVFoundation's buffer class.
 ///
 /// Kept in its own file so `AudioSamples.swift` and the edit logic stay free of AVFoundation, and
-/// so it is obvious that these two functions are the only places a non-`Sendable` buffer is created.
+/// so the non-`Sendable` buffers these create never outlive a single call.
 extension AudioSamples {
     /// Standard float32, deinterleaved — the format the rest of the package assumes.
     public var avFormat: AVAudioFormat? {
@@ -49,5 +49,52 @@ extension AudioSamples {
                 Array(UnsafeBufferPointer(start: data[channel], count: frames))
             }
         )
+    }
+
+    /// These samples at `rate`, converted with `AVAudioConverter`. Returns `self` unchanged when
+    /// the rate already matches. Used ahead of the MP3 and AAC encoders, which accept only the
+    /// MPEG sample rates.
+    public func resampled(to rate: Double) throws -> AudioSamples {
+        if rate == sampleRate { return self }
+        let failure = ResamplingError(from: sampleRate, to: rate)
+        guard
+            let inputFormat = avFormat,
+            let outputFormat = AVAudioFormat(
+                standardFormatWithSampleRate: rate,
+                channels: AVAudioChannelCount(channelCount)
+            ),
+            let converter = AVAudioConverter(from: inputFormat, to: outputFormat),
+            let input = makePCMBuffer()
+        else { throw failure }
+
+        let capacity = AVAudioFrameCount(Double(frameCount) * rate / sampleRate) + 8_192
+        guard let output = AVAudioPCMBuffer(pcmFormat: outputFormat, frameCapacity: capacity) else {
+            throw failure
+        }
+
+        var supplied = false
+        var conversionError: NSError?
+        let status = converter.convert(to: output, error: &conversionError) { _, inputStatus in
+            if supplied {
+                inputStatus.pointee = .endOfStream
+                return nil
+            }
+            supplied = true
+            inputStatus.pointee = .haveData
+            return input
+        }
+
+        guard status != .error, conversionError == nil, output.frameLength > 0 else { throw failure }
+        guard let converted = AudioSamples(pcmBuffer: output) else { throw failure }
+        return converted
+    }
+}
+
+public struct ResamplingError: Error, LocalizedError, Sendable {
+    public let from: Double
+    public let to: Double
+
+    public var errorDescription: String? {
+        "Could not convert the audio from \(Int(from)) Hz to \(Int(to)) Hz."
     }
 }

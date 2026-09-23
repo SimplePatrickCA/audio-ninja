@@ -41,6 +41,15 @@ public enum AudioLoader {
     /// also builds for iOS.
     private static let endOfFileStatus = -39
 
+    /// The codec `url` is encoded with, e.g. `kAudioFormatAppleLossless`, or nil if it cannot be
+    /// opened. Reads only the header.
+    public static func sourceFormatID(of url: URL) -> AudioFormatID? {
+        // Via `settings` rather than `streamDescription`, whose pointer is only valid while the
+        // format object is alive — and in a one-line chain it is not.
+        guard let file = try? AVAudioFile(forReading: url) else { return nil }
+        return (file.fileFormat.settings[AVFormatIDKey] as? NSNumber)?.uint32Value
+    }
+
     public static func load(from url: URL, byteLimit: Int = defaultByteLimit) throws -> AudioSamples {
         try decode(from: url, byteLimit: byteLimit, onProgress: { _ in })
     }

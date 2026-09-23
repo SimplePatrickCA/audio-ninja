@@ -78,8 +78,6 @@ public enum AudioExportError: Error, LocalizedError, Sendable {
 /// AVAudioFile converts from our float32 processing format to the file's own format on write, so
 /// the depth choice is just a settings dictionary.
 public enum AudioExporter {
-    private static let chunkFrames = 65_536
-
     public static func write(
         _ buffer: AudioSamples,
         to url: URL,
@@ -100,31 +98,35 @@ public enum AudioExporter {
             interleaved: false
         )
 
-        let processingFormat = file.processingFormat
+        try file.write(buffer)
+        file.close()
+    }
+}
+
+extension AVAudioFile {
+    /// Writes `samples` through a small reusable buffer, so memory stays flat however long the
+    /// audio is. The file converts from the float32 processing format to its own on the way.
+    func write(_ samples: AudioSamples, chunkFrames: Int = 65_536) throws {
         guard
             let scratch = AVAudioPCMBuffer(
                 pcmFormat: processingFormat,
                 frameCapacity: AVAudioFrameCount(chunkFrames)
-            )
+            ),
+            let destination = scratch.floatChannelData
         else {
             throw AudioExportError.couldNotAllocateBuffer
         }
 
         var offset = 0
-        while offset < buffer.frameCount {
-            let frames = min(chunkFrames, buffer.frameCount - offset)
+        while offset < samples.frameCount {
+            let frames = min(chunkFrames, samples.frameCount - offset)
             scratch.frameLength = AVAudioFrameCount(frames)
-
-            guard let destination = scratch.floatChannelData else {
-                throw AudioExportError.couldNotAllocateBuffer
-            }
-            for channel in 0..<buffer.channelCount {
-                buffer.channels[channel].withUnsafeBufferPointer { source in
+            for channel in 0..<samples.channelCount {
+                samples.channels[channel].withUnsafeBufferPointer { source in
                     destination[channel].update(from: source.baseAddress! + offset, count: frames)
                 }
             }
-
-            try file.write(from: scratch)
+            try write(from: scratch)
             offset += frames
         }
     }
