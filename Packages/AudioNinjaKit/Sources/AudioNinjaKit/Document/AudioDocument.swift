@@ -60,9 +60,6 @@ public final class AudioDocument: @MainActor Document {
     public var isEmpty: Bool { frameCount == 0 }
     public var duration: Duration { .seconds(Double(frameCount) / Swift.max(sampleRate, 1)) }
 
-    /// Whether anything has been cut since the file was opened.
-    public var hasEdits: Bool { editList != EditList(fullLength: original.frameCount) }
-
     public var hasSelection: Bool {
         guard let selection else { return false }
         return !selection.isEmpty

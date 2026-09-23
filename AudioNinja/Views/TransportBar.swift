@@ -20,17 +20,32 @@ struct TransportBar: View {
 
     var body: some View {
         GlassEffectContainer(spacing: 18) {
-            HStack(spacing: 18) {
-                transportCluster
-                if document.hasSelection {
-                    cutCluster
-                        .transition(.blurReplace)
+            // Side by side where there is room, stacked on a phone. The bar must never be wider
+            // than the window: if it is, SwiftUI widens the whole editor to fit it, the waveform
+            // shifts under the finger mid-drag, and the selection flickers the cut buttons in and
+            // out on every frame.
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 18) {
+                    transportCluster
+                    cutClusterIfSelected
+                }
+                VStack(spacing: 10) {
+                    cutClusterIfSelected
+                    transportCluster
                 }
             }
         }
         .animation(.snappy(duration: 0.28), value: document.hasSelection)
         .padding(.horizontal, 20)
         .padding(.bottom, 14)
+    }
+
+    @ViewBuilder
+    private var cutClusterIfSelected: some View {
+        if document.hasSelection {
+            cutCluster
+                .transition(.blurReplace)
+        }
     }
 
     // MARK: - Transport
@@ -67,6 +82,8 @@ struct TransportBar: View {
             .help("Stop")
 
             Text(document.duration.formattedTime)
+                .lineLimit(1)
+                .fixedSize()
                 .font(.system(.body, design: .monospaced))
                 .monospacedDigit()
                 .foregroundStyle(.secondary)
@@ -108,6 +125,7 @@ struct TransportBar: View {
                 document.trimToSelection(undoManager: undoManager)
             } label: {
                 Label("Trim", systemImage: "scissors")
+                    .lineLimit(1)
                     .frame(minHeight: PlatformMetrics.controlSize)
             }
             .buttonStyle(.glass)
@@ -118,6 +136,7 @@ struct TransportBar: View {
                 document.deleteSelection(undoManager: undoManager)
             } label: {
                 Label("Delete", systemImage: "delete.left")
+                    .lineLimit(1)
                     .frame(minHeight: PlatformMetrics.controlSize)
             }
             .buttonStyle(.glass)

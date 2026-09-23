@@ -40,12 +40,12 @@ struct MP3ViewerTests {
         let viewer = AudioViewerDocument()
         try await viewer.apply(snapshot: snapshot, previous: nil)
         #expect(!viewer.audio.isEmpty)
-        #expect(!viewer.audio.hasEdits)
+        let opened = viewer.audio.frameCount
         #expect(viewer.audio.sourceName == "sine-440hz-0.5s")
 
         viewer.audio.select(0..<11_025)
         viewer.audio.deleteSelection(undoManager: nil)
-        #expect(viewer.audio.hasEdits)
+        #expect(viewer.audio.frameCount == opened - 11_025)
     }
 
     /// What Export does: the edited audio goes out through the document's own writer.

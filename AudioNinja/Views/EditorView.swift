@@ -66,7 +66,11 @@ struct EditorView: View {
             } message: { error in
                 Text(error.underlying.localizedDescription)
             }
+            #if os(macOS)
+            // A minimum window size. On iOS this would force the editor wider than an iPhone's
+            // screen, pushing the controls off both edges.
             .frame(minWidth: 520, minHeight: 320)
+            #endif
     }
 
     private func startExport(as type: UTType) {
@@ -76,17 +80,15 @@ struct EditorView: View {
 
     /// Says up front, rather than at close, that edits to an MP3 live only until exported.
     private var exportOnlyNotice: some View {
-        Label(
-            document.hasEdits
-                ? "MP3 files can't be saved. Export to keep your changes."
-                : "MP3 files can't be saved. Edits can be kept with Export.",
-            systemImage: "info.circle"
-        )
-        .font(.callout)
-        .padding(.horizontal, 14)
-        .padding(.vertical, 8)
-        .floatingSurface(reduceTransparency: reduceTransparency)
-        .padding(.top, 10)
+        Label("MP3 can't be saved. Use Export to keep your edits.", systemImage: "info.circle")
+            .font(.callout)
+            // Wraps rather than widening the window on a phone.
+            .fixedSize(horizontal: false, vertical: true)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 8)
+            .floatingSurface(reduceTransparency: reduceTransparency)
+            .padding(.horizontal, 16)
+            .padding(.top, 10)
     }
 }
 
