@@ -286,15 +286,15 @@ struct AudioDocumentWriteTests {
 
     /// iOS has no Save As, so a type that opens but cannot be written back leaves an edited file
     /// with no way to save it.
-    @Test("Every readable type can be saved back in place")
+    @Test("Every readable type but MP3 can be saved back in place")
     @MainActor
     func everyReadableTypeIsWritable() {
-        for type in AudioDocument.readableContentTypes {
+        for type in AudioDocument.readableContentTypes where type != .mp3 {
             #expect(AudioDocument.writableContentTypes.contains(type))
         }
-        // MP3 opens through the viewer instead, which is never saved in place.
-        #expect(!AudioDocument.readableContentTypes.contains(.mp3))
-        #expect(AudioViewerDocument.readableContentTypes == [.mp3])
+        // MP3 opens read-only instead; see MP3ReadOnlyTests.
+        #expect(AudioDocument.readableContentTypes.contains(.mp3))
+        #expect(!AudioDocument.writableContentTypes.contains(.mp3))
     }
 
     @Test("Saving an edited M4A or FLAC reloads at the edited length", arguments: ["m4a", "flac"])

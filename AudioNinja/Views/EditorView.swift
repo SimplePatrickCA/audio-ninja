@@ -6,9 +6,6 @@ import UniformTypeIdentifiers
 struct EditorView: View {
     @Bindable var document: AudioDocument
 
-    /// False for an MP3, which opens in a viewer and can only be kept by exporting.
-    let savesInPlace: Bool
-
     @Environment(\.undoManager) private var undoManager
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
 
@@ -25,8 +22,9 @@ struct EditorView: View {
                 TransportBar(document: document, export: startExport)
             }
             .safeAreaInset(edge: .top, spacing: 0) {
-                if !savesInPlace {
-                    exportOnlyNotice
+                // MP3: the app can read it but has no encoder to write it back.
+                if !document.isEditable {
+                    readOnlyNotice
                 }
             }
             .focusedSceneValue(\.audioDocument, document)
@@ -36,7 +34,7 @@ struct EditorView: View {
                 return .handled
             }
             .onKeyPress(.delete) {
-                guard document.hasSelection else { return .ignored }
+                guard document.isEditable, document.hasSelection else { return .ignored }
                 document.deleteSelection(undoManager: undoManager)
                 return .handled
             }
@@ -78,9 +76,9 @@ struct EditorView: View {
         exportType = type
     }
 
-    /// Says up front, rather than at close, that edits to an MP3 live only until exported.
-    private var exportOnlyNotice: some View {
-        Label("MP3 can't be saved. Use Export to keep your edits.", systemImage: "info.circle")
+    /// Says why there are no cut buttons, and how to get them.
+    private var readOnlyNotice: some View {
+        Label("MP3 files are read-only. Export as M4A to edit a copy.", systemImage: "info.circle")
             .font(.callout)
             // Wraps rather than widening the window on a phone.
             .fixedSize(horizontal: false, vertical: true)

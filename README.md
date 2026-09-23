@@ -16,7 +16,8 @@ Built with Swift 6.4 and SwiftUI, targeting macOS 27 and iOS 27.
   Apple Lossless; otherwise M4A means AAC
 - **Export As** (the ••• menu, or File ▸ Export As on macOS) writes a copy as M4A, WAV, AIFF, FLAC
   or CAF
-- MP3 opens, plays and edits in full, but cannot be saved as MP3 — export it instead. See below
+- MP3 opens read-only: it plays, selects and exports, and Export As M4A gives an editable copy.
+  See below
 
 Editing is non-destructive. The decoded file is never modified; an edit list records which ranges
 of it survive, so a cut is a few integers rather than a copy of the audio, and undo is effectively
@@ -74,9 +75,10 @@ and what is still needed for TestFlight and the App Store.
 - **No third-party code.** Everything is built on Apple's frameworks. That is why there is no MP3
   export: Apple ships an MP3 decoder but no encoder, and the MP3 encoders that exist (LAME,
   Shine) are LGPL. The LGPL's terms sit uneasily with App Store distribution, so the app ships none.
-  An MP3 therefore opens in a viewer window, which is never saved in place; everything else
-  works, and a banner says to use Export to keep the result. Don't add an LGPL or GPL dependency
-  without revisiting this.
+  An MP3 therefore opens read-only, with a banner saying so: it can't be cut, so it is never
+  marked edited and never autosaved (iOS would otherwise try to save it as MP3, which can only
+  fail). Export As turns it into an editable M4A. Don't add an LGPL or GPL dependency without
+  revisiting this.
 - AAC supports a fixed set of sample rates; anything else (96 kHz and the like) is resampled to
   48 kHz or 44.1 kHz first. AAC export is mono or stereo only.
 - Files are decoded fully into memory, with a 512 MB ceiling (~45 minutes of 48 kHz stereo).

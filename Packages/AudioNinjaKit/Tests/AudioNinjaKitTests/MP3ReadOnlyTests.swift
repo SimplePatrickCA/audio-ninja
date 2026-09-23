@@ -18,7 +18,7 @@ private func makeScratch() throws -> URL {
     return url
 }
 
-@Suite("MP3 viewing and export")
+@Suite("MP3: read-only, with export")
 struct MP3ViewerTests {
     @Test("An MP3 decodes with Apple's decoder")
     func decodesMP3() throws {
@@ -29,46 +29,66 @@ struct MP3ViewerTests {
         #expect(samples.channels[0].map(abs).max() ?? 0 > 0.3)
     }
 
-    @Test("The viewer opens an MP3 with the full editor state behind it")
+    /// Reads an MP3 the way the document system does, with its content type.
     @MainActor
-    func viewerOpensMP3() async throws {
-        let snapshot = try await AudioDocumentReader()
-            .read(from: mp3Fixture(), progress: ProgressManager(totalCount: 1).subprogress(assigningCount: 1))
-        #expect(snapshot.sourceFormatID == kAudioFormatMPEGLayer3)
-        #expect(snapshot.sourceName == "sine-440hz-0.5s")
-
-        let viewer = AudioViewerDocument()
-        try await viewer.apply(snapshot: snapshot, previous: nil)
-        #expect(!viewer.audio.isEmpty)
-        let opened = viewer.audio.frameCount
-        #expect(viewer.audio.sourceName == "sine-440hz-0.5s")
-
-        viewer.audio.select(0..<11_025)
-        viewer.audio.deleteSelection(undoManager: nil)
-        #expect(viewer.audio.frameCount == opened - 11_025)
-    }
-
-    /// What Export does: the edited audio goes out through the document's own writer.
-    @Test("An edited MP3 exports to every offered format", arguments: AudioContentTypes.exportable)
-    @MainActor
-    func exportsEditedMP3(type: UTType) async throws {
-        let directory = try makeScratch()
-        defer { try? FileManager.default.removeItem(at: directory) }
-
-        let viewer = AudioViewerDocument()
-        try await viewer.apply(
-            snapshot: AudioDocumentReader()
+    private func openMP3() async throws -> AudioDocument {
+        let document = AudioDocument()
+        try await document.apply(
+            snapshot: AudioDocumentReader(contentType: .mp3)
                 .read(from: mp3Fixture(), progress: ProgressManager(totalCount: 1).subprogress(assigningCount: 1)),
             previous: nil
         )
-        viewer.audio.select(0..<11_025)
-        viewer.audio.deleteSelection(undoManager: nil)
-        let expected = viewer.audio.frameCount
+        return document
+    }
+
+    @Test("An MP3 opens read-only, with its source recorded")
+    @MainActor
+    func opensReadOnly() async throws {
+        let document = try await openMP3()
+        #expect(!document.isEmpty)
+        #expect(!document.isEditable)
+        #expect(document.sourceName == "sine-440hz-0.5s")
+    }
+
+    /// iOS autosaves an edited document, and saving MP3 cannot succeed; a failed autosave left the
+    /// editor blank. So an MP3 must never become edited.
+    @Test("Cuts are refused on an MP3, so it never becomes edited")
+    @MainActor
+    func refusesCuts() async throws {
+        let document = try await openMP3()
+        let undo = UndoManager()
+        let frames = document.frameCount
+
+        document.select(0..<11_025)
+        document.deleteSelection(undoManager: undo)
+        document.select(0..<11_025)
+        document.trimToSelection(undoManager: undo)
+
+        #expect(document.frameCount == frames)
+        #expect(!undo.canUndo)
+    }
+
+    @Test("Other types stay editable")
+    @MainActor
+    func otherTypesEditable() {
+        let document = AudioDocument()
+        #expect(document.isEditable)   // nothing opened yet
+    }
+
+    /// What Export does: the audio goes out through the document's own writer.
+    @Test("An MP3 exports to every offered format", arguments: AudioContentTypes.exportable)
+    @MainActor
+    func exportsMP3(type: UTType) async throws {
+        let directory = try makeScratch()
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        let document = try await openMP3()
+        let expected = document.frameCount
 
         #expect(AudioDocument.writableContentTypes.contains(type))
         let destination = directory.appendingPathComponent("out.\(try #require(type.preferredFilenameExtension))")
         try await AudioDocumentWriter(contentType: type).write(
-            snapshot: viewer.audio.snapshot(contentType: type),
+            snapshot: document.snapshot(contentType: type),
             to: destination,
             previous: nil,
             progress: ProgressManager(totalCount: 1).subprogress(assigningCount: 1)

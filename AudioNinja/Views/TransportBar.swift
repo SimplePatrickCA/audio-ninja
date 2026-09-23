@@ -35,14 +35,14 @@ struct TransportBar: View {
                 }
             }
         }
-        .animation(.snappy(duration: 0.28), value: document.hasSelection)
+        .animation(.snappy(duration: 0.28), value: document.isEditable && document.hasSelection)
         .padding(.horizontal, 20)
         .padding(.bottom, 14)
     }
 
     @ViewBuilder
     private var cutClusterIfSelected: some View {
-        if document.hasSelection {
+        if document.isEditable, document.hasSelection {
             cutCluster
                 .transition(.blurReplace)
         }

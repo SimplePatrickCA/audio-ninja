@@ -36,13 +36,13 @@ struct AppCommands: Commands {
                 document?.trimToSelection(undoManager: undoManager)
             }
             .keyboardShortcut("t", modifiers: .command)
-            .disabled(document?.hasSelection != true)
+            .disabled(document?.isEditable != true || document?.hasSelection != true)
 
             Button("Delete Selection") {
                 document?.deleteSelection(undoManager: undoManager)
             }
             .keyboardShortcut(.delete, modifiers: [])
-            .disabled(document?.hasSelection != true)
+            .disabled(document?.isEditable != true || document?.hasSelection != true)
 
             Divider()
 

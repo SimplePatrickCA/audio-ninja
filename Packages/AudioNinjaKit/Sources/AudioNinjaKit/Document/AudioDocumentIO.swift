@@ -23,7 +23,10 @@ public struct AudioDocumentReader: DocumentReader {
     public typealias Snapshot = AudioDocumentSnapshot
     public typealias Source = URL
 
-    public init() {}
+    /// The type being opened, recorded so the document knows whether it can save in place.
+    public let contentType: UTType?
+
+    public init(contentType: UTType? = nil) { self.contentType = contentType }
 
     @concurrent
     public func read(from source: sending URL, progress: consuming Subprogress) async throws
@@ -37,7 +40,8 @@ public struct AudioDocumentReader: DocumentReader {
             editList: EditList(fullLength: samples.frameCount),
             peaks: PeakCache(samples: samples),
             sourceFormatID: AudioLoader.sourceFormatID(of: source),
-            sourceName: source.deletingPathExtension().lastPathComponent
+            sourceName: source.deletingPathExtension().lastPathComponent,
+            sourceContentType: contentType
         )
     }
 }

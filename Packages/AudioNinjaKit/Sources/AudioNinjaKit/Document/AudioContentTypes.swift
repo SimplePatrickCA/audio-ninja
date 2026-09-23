@@ -8,15 +8,15 @@ public enum AudioContentTypes {
     static let flac = UTType("org.xiph.flac") ?? .audio
     static let m4a = UTType("com.apple.m4a-audio") ?? .audio
 
-    /// Types that open for editing and save back in place. Readable and writable are the same
-    /// list on purpose: iOS has no Save As, so a type that opened but could not be written back
-    /// would leave an edited file with no way to save it.
-    static let editable: [UTType] = [.wav, .aiff, .mpeg4Audio, m4a, caf, flac]
+    /// Types that open and save back in place.
+    static let writable: [UTType] = [.wav, .aiff, .mpeg4Audio, m4a, caf, flac]
 
-    /// Types that open in a viewer: fully editable in memory, kept by exporting, never saved in
-    /// place. Only MP3. Apple ships an MP3 decoder but no encoder, and the only MP3 encoders
-    /// available (LAME, Shine) are LGPL, which the app deliberately does not ship.
-    public static let viewable: [UTType] = [.mp3]
+    /// Types that open read-only: they play and export, but cannot be cut. Only MP3: Apple ships
+    /// an MP3 decoder but no encoder, and the only MP3 encoders available (LAME, Shine) are LGPL,
+    /// which the app deliberately does not ship.
+    static let readOnly: [UTType] = [.mp3]
+
+    static let readable: [UTType] = writable + readOnly
 
     /// What Export offers, in menu order.
     public static let exportable: [UTType] = [m4a, .wav, .aiff, flac, caf]
