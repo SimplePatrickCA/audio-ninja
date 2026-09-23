@@ -61,6 +61,15 @@ jobs:
       - name: Logic tests
         run: swift test --package-path Packages/AudioNinjaKit
 
+      # The app shows LAME's licence on its Acknowledgements screen. The LGPL requires the
+      # shipped text to be the real one, so it must match the package the app is built with.
+      - name: Fail if the bundled LAME licence differs from the package's
+        run: |
+          if ! cmp -s Packages/AudioNinjaKit/.build/checkouts/LAME-xcframework/COPYING AudioNinja/Resources/LAME-LICENSE.txt; then
+            echo "::error file=AudioNinja/Resources/LAME-LICENSE.txt::Does not match COPYING in the LAME-xcframework package. Copy it again."
+            exit 1
+          fi
+
       # Signing is disabled throughout: these builds are only ever compiled, never
       # run or shipped, and the runner has no signing identity. release.yml is the
       # one that produces a signed artifact.

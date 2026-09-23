@@ -1,6 +1,5 @@
 import AudioToolbox
 import Foundation
-import UniformTypeIdentifiers
 
 /// What crosses between the document and its off-main-actor reader and writer.
 ///
@@ -23,23 +22,18 @@ public struct AudioDocumentSnapshot: Sendable {
     /// The opened file's name without its extension, offered as the name for an export.
     public let sourceName: String?
 
-    /// The type the file was opened as.
-    public let sourceContentType: UTType?
-
     public init(
         original: AudioSamples,
         editList: EditList,
         peaks: PeakCache? = nil,
         sourceFormatID: AudioFormatID? = nil,
-        sourceName: String? = nil,
-        sourceContentType: UTType? = nil
+        sourceName: String? = nil
     ) {
         self.original = original
         self.editList = editList
         self.peaks = peaks
         self.sourceFormatID = sourceFormatID
         self.sourceName = sourceName
-        self.sourceContentType = sourceContentType
     }
 
     /// The audio as currently edited.

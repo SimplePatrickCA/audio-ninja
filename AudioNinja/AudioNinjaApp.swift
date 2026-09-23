@@ -16,5 +16,13 @@ struct AudioNinjaApp: App {
         .defaultSize(width: 1_000, height: 560)
         .windowResizability(.contentMinSize)
         #endif
+
+        #if os(macOS)
+        Window("Acknowledgements", id: AcknowledgementsView.windowID) {
+            AcknowledgementsView()
+        }
+        .defaultSize(width: 560, height: 560)
+        .windowResizability(.contentMinSize)
+        #endif
     }
 }

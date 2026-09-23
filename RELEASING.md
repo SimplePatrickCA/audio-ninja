@@ -24,6 +24,10 @@ and not notarized. Apple silicon refuses to execute a wholly unsigned binary, so
 is the floor, not a choice — but it is not enough for Gatekeeper, which is why the
 release notes tell people to clear the quarantine attribute.
 
+It is built without the hardened runtime. The runtime's library validation only loads
+frameworks signed by the same team as the app, and an ad-hoc app has no team, so it
+would refuse the embedded `LAME.framework` and the app would not launch.
+
 It is also arm64-only. macOS 27 dropped Intel support, so there is no second slice to build.
 
 ## Making it open without the quarantine dance
@@ -37,7 +41,7 @@ cannot be done from what is in this repo:
    App Store Connect API key (or an app-specific password) for notarization.
 3. In `release.yml`, import the certificate into a temporary keychain, swap
    `CODE_SIGN_IDENTITY="-"` for `"Developer ID Application"` with `DEVELOPMENT_TEAM` set,
-   and add `xcrun notarytool submit --wait` followed by `xcrun stapler staple` on the zip.
+   remove `ENABLE_HARDENED_RUNTIME=NO` (notarization requires the hardened runtime), and add `xcrun notarytool submit --wait` followed by `xcrun stapler staple` on the zip.
 
 One thing to keep in mind, which matters more once the app is public:
 
@@ -63,8 +67,10 @@ Connect record covering both iOS and macOS.
 - The App Sandbox entitlements apply to macOS only. An iOS binary carrying them is rejected.
 - The iOS icon has no alpha channel, which App Store Connect rejects even when the image is
   fully opaque. `scripts/generate-app-icon.sh` strips it.
-- No third-party code ships, so there are no licences to comply with or credit. MP3
-  encoding was removed for this reason; see the Notes in [README.md](README.md).
+- One third-party library ships: LAME (LGPL), as the embedded dynamic `LAME.framework`,
+  credited with its full licence under Acknowledgements in the app. See
+  [THIRD-PARTY-LICENSES.md](THIRD-PARTY-LICENSES.md), including what is not settled about
+  LGPL code on the App Store.
 
 ### Still needed, and only you can do it
 
@@ -95,6 +101,7 @@ Connect record covering both iOS and macOS.
    | 2 | macOS | From Xcode |
    | 3 | iOS, macOS | iPhone layout fix (controls overflowed the screen) |
    | 4 | iOS, macOS | One document type, MP3 read-only (build 3 crashed in SwiftUI's document cast on iOS) |
+   | 5 | iOS, macOS | MP3 editing and export, through LAME (LAME-xcframework 3.100.3) |
 5. Upload with the **release** Xcode 27, not a beta. App Store Connect refuses builds from
    beta toolchains.
 

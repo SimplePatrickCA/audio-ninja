@@ -8,18 +8,12 @@ public enum AudioContentTypes {
     static let flac = UTType("org.xiph.flac") ?? .audio
     static let m4a = UTType("com.apple.m4a-audio") ?? .audio
 
-    /// Types that open and save back in place.
-    static let writable: [UTType] = [.wav, .aiff, .mpeg4Audio, m4a, caf, flac]
-
-    /// Types that open read-only: they play and export, but cannot be cut. Only MP3: Apple ships
-    /// an MP3 decoder but no encoder, and the only MP3 encoders available (LAME, Shine) are LGPL,
-    /// which the app deliberately does not ship.
-    static let readOnly: [UTType] = [.mp3]
-
-    static let readable: [UTType] = writable + readOnly
+    /// Every type opens, and saves back in place in its own format.
+    static let readable: [UTType] = [.wav, .aiff, .mpeg4Audio, m4a, .mp3, caf, flac]
+    static let writable: [UTType] = readable
 
     /// What Export offers, in menu order.
-    public static let exportable: [UTType] = [m4a, .wav, .aiff, flac, caf]
+    public static let exportable: [UTType] = [m4a, .mp3, .wav, .aiff, flac, caf]
 
     /// Maps a content type onto the uncompressed container `AudioExporter` writes.
     static func fileFormat(for type: UTType) -> AudioFileFormat? {
@@ -27,6 +21,11 @@ public enum AudioContentTypes {
         if type.conforms(to: .aiff) { return .aiff }
         if type.conforms(to: caf) { return .caf }
         return nil
+    }
+
+    /// Whether a content type is written by `MP3Exporter`.
+    static func isMP3(_ type: UTType) -> Bool {
+        type.conforms(to: .mp3)
     }
 
     /// Maps a content type onto a format `CompressedExporter` writes. An MPEG-4 file stays Apple

@@ -7,7 +7,6 @@ struct EditorView: View {
     @Bindable var document: AudioDocument
 
     @Environment(\.undoManager) private var undoManager
-    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
 
     /// The format being exported to; non-nil while the export panel is up.
     @State private var exportType: UTType?
@@ -21,12 +20,6 @@ struct EditorView: View {
             .safeAreaInset(edge: .bottom, spacing: 0) {
                 TransportBar(document: document, export: startExport)
             }
-            .safeAreaInset(edge: .top, spacing: 0) {
-                // MP3: the app can read it but has no encoder to write it back.
-                if !document.isEditable {
-                    readOnlyNotice
-                }
-            }
             .focusedSceneValue(\.audioDocument, document)
             .focusedSceneValue(\.exportAudio, ExportAction(perform: startExport))
             .onKeyPress(.space) {
@@ -34,7 +27,7 @@ struct EditorView: View {
                 return .handled
             }
             .onKeyPress(.delete) {
-                guard document.isEditable, document.hasSelection else { return .ignored }
+                guard document.hasSelection else { return .ignored }
                 document.deleteSelection(undoManager: undoManager)
                 return .handled
             }
@@ -74,19 +67,6 @@ struct EditorView: View {
     private func startExport(as type: UTType) {
         document.player.stop()
         exportType = type
-    }
-
-    /// Says why there are no cut buttons, and how to get them.
-    private var readOnlyNotice: some View {
-        Label("MP3 files are read-only. Export as M4A to edit a copy.", systemImage: "info.circle")
-            .font(.callout)
-            // Wraps rather than widening the window on a phone.
-            .fixedSize(horizontal: false, vertical: true)
-            .padding(.horizontal, 14)
-            .padding(.vertical, 8)
-            .floatingSurface(reduceTransparency: reduceTransparency)
-            .padding(.horizontal, 16)
-            .padding(.top, 10)
     }
 }
 

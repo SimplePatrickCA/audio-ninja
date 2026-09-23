@@ -9,7 +9,7 @@ public enum AudioDocumentError: Error, LocalizedError {
         switch self {
         case let .unsupportedOutputFormat(type):
             let name = type.localizedDescription ?? type.identifier
-            return "Audio Ninja can't save \(name) files. Export a copy as M4A, WAV, AIFF, FLAC or CAF instead."
+            return "Audio Ninja can't save \(name) files. Export a copy as M4A, MP3, WAV, AIFF, FLAC or CAF instead."
         }
     }
 }
@@ -23,10 +23,7 @@ public struct AudioDocumentReader: DocumentReader {
     public typealias Snapshot = AudioDocumentSnapshot
     public typealias Source = URL
 
-    /// The type being opened, recorded so the document knows whether it can save in place.
-    public let contentType: UTType?
-
-    public init(contentType: UTType? = nil) { self.contentType = contentType }
+    public init() {}
 
     @concurrent
     public func read(from source: sending URL, progress: consuming Subprogress) async throws
@@ -40,8 +37,7 @@ public struct AudioDocumentReader: DocumentReader {
             editList: EditList(fullLength: samples.frameCount),
             peaks: PeakCache(samples: samples),
             sourceFormatID: AudioLoader.sourceFormatID(of: source),
-            sourceName: source.deletingPathExtension().lastPathComponent,
-            sourceContentType: contentType
+            sourceName: source.deletingPathExtension().lastPathComponent
         )
     }
 }
@@ -68,6 +64,8 @@ public struct AudioDocumentWriter: DocumentWriter {
 
         if let format = AudioContentTypes.fileFormat(for: contentType) {
             try AudioExporter.write(rendered, to: destination, format: format)
+        } else if AudioContentTypes.isMP3(contentType) {
+            try MP3Exporter.write(rendered, to: destination)
         } else if let format = AudioContentTypes.compressedFormat(
             for: contentType,
             sourceFormatID: snapshot.sourceFormatID

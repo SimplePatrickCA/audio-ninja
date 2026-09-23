@@ -12,12 +12,10 @@ Built with Swift 6.4 and SwiftUI, targeting macOS 27 and iOS 27.
 - Click to place the cursor, drag to select. Play starts from the selection, or from the cursor,
   or from the beginning if neither is set
 - **Trim to selection** and **delete selection**, with unlimited undo and redo
-- Saves WAV, AIFF, CAF, M4A and FLAC back in place. An M4A opened as Apple Lossless is saved as
-  Apple Lossless; otherwise M4A means AAC
-- **Export As** (the ••• menu, or File ▸ Export As on macOS) writes a copy as M4A, WAV, AIFF, FLAC
-  or CAF
-- MP3 opens read-only: it plays, selects and exports, and Export As M4A gives an editable copy.
-  See below
+- Saves every format it opens back in place, MP3 included. An M4A opened as Apple Lossless is
+  saved as Apple Lossless; otherwise M4A means AAC
+- **Export As** (the ••• menu, or File ▸ Export As on macOS) writes a copy as M4A, MP3, WAV, AIFF,
+  FLAC or CAF
 
 Editing is non-destructive. The decoded file is never modified; an edit list records which ranges
 of it survive, so a cut is a few integers rather than a copy of the audio, and undo is effectively
@@ -72,13 +70,16 @@ and what is still needed for TestFlight and the App Store.
 
 ## Notes
 
-- **No third-party code.** Everything is built on Apple's frameworks. That is why there is no MP3
-  export: Apple ships an MP3 decoder but no encoder, and the MP3 encoders that exist (LAME,
-  Shine) are LGPL. The LGPL's terms sit uneasily with App Store distribution, so the app ships none.
-  An MP3 therefore opens read-only, with a banner saying so: it can't be cut, so it is never
-  marked edited and never autosaved (iOS would otherwise try to save it as MP3, which can only
-  fail). Export As turns it into an editable M4A. Don't add an LGPL or GPL dependency without
-  revisiting this.
+- **One third-party library: LAME, for MP3.** Apple ships an MP3 decoder but no encoder, so MP3
+  is written by LAME 3.100, from the prebuilt, dynamic
+  [LAME-xcframework](https://github.com/BB9z/LAME-xcframework) Swift package. LAME is LGPL. It
+  ships unmodified as its own embedded framework and is credited, with its licence, under
+  Acknowledgements in the app. Read [THIRD-PARTY-LICENSES.md](THIRD-PARTY-LICENSES.md) before
+  changing how it is linked or adding another dependency.
+- MP3 is saved at 192 kbit/s constant bitrate. It is lossy, so every save of an MP3 re-encodes it
+  and loses a little more; for repeated editing, Export As WAV or FLAC first. MP3 is mono or
+  stereo only, and rates MP3 can't express (96 kHz and the like) are resampled to 48 kHz or
+  44.1 kHz.
 - AAC supports a fixed set of sample rates; anything else (96 kHz and the like) is resampled to
   48 kHz or 44.1 kHz first. AAC export is mono or stereo only.
 - Files are decoded fully into memory, with a 512 MB ceiling (~45 minutes of 48 kHz stereo).

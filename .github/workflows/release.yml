@@ -56,6 +56,9 @@ jobs:
       # unsigned binary, so signing cannot simply be switched off here as it is in
       # ci.yml. See the release notes below for what this means for the person
       # downloading it.
+      # Hardened runtime off: its library validation refuses to load the embedded
+      # LAME.framework into an app with no Team ID, so the app would not launch.
+      # It only matters for notarization, which an ad-hoc build cannot have anyway.
       - name: Build
         run: |
           xcodebuild -project AudioNinja.xcodeproj -scheme AudioNinja \
@@ -63,6 +66,7 @@ jobs:
             -derivedDataPath build/dd \
             CODE_SIGN_IDENTITY="-" CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM="" \
             CODE_SIGNING_REQUIRED=YES CODE_SIGNING_ALLOWED=YES \
+            ENABLE_HARDENED_RUNTIME=NO \
             MARKETING_VERSION="${{ steps.version.outputs.version }}" \
             CURRENT_PROJECT_VERSION="${{ github.run_number }}" \
             build
@@ -127,6 +131,12 @@ jobs:
           \`\`\`
           $CHECKSUM  $NAME
           \`\`\`
+
+          ### Third-party code
+
+          Includes the LAME MP3 encoder (LGPL-2.0-or-later), unmodified, as the embedded
+          dynamic LAME.framework. Read [THIRD-PARTY-LICENSES.md](${{ github.server_url }}/${{ github.repository }}/blob/main/THIRD-PARTY-LICENSES.md)
+          before redistributing this build.
           NOTES
 
           gh release create "$GITHUB_REF_NAME" \

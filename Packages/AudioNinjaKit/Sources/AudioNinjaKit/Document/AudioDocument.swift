@@ -17,11 +17,10 @@ import UniformTypeIdentifiers
 @Observable
 public final class AudioDocument: @MainActor Document {
 
-    /// One document type for every format, MP3 included. Build 3 opened MP3 through a second,
-    /// read-only DocumentGroup of another type. On iOS both groups share one document view
-    /// controller, and that build crashed inside SwiftUI's document plumbing on a failed forced
-    /// cast of the document (ObservationDocumentBoxInputView). With one type there is nothing
-    /// to mismatch.
+    /// One document type for every format, MP3 included. Build 3 opened MP3 through a second
+    /// DocumentGroup of another type. On iOS both groups share one document view controller, and
+    /// that build crashed inside SwiftUI's document plumbing on a failed forced cast of the
+    /// document (ObservationDocumentBoxInputView). With one type there is nothing to mismatch.
     public static var readableContentTypes: [UTType] { AudioContentTypes.readable }
     public static var writableContentTypes: [UTType] { AudioContentTypes.writable }
 
@@ -38,18 +37,6 @@ public final class AudioDocument: @MainActor Document {
 
     /// The codec the file was opened with, carried through to saving.
     @ObservationIgnored private var sourceFormatID: AudioFormatID?
-
-    /// The type the file was opened as; nil before anything is read.
-    public private(set) var contentType: UTType?
-
-    /// False for a type the app can read but not write (MP3). Such a document plays and exports
-    /// but is never cut, so it never becomes edited. That matters on iOS: it autosaves an edited
-    /// document in its own type (measured on iOS 27), and with no MP3 encoder that save can only
-    /// fail.
-    public var isEditable: Bool {
-        guard let contentType else { return true }
-        return Self.writableContentTypes.contains { contentType.conforms(to: $0) }
-    }
 
     /// The opened file's name without its extension; the default name for an export.
     public private(set) var sourceName: String?
@@ -105,13 +92,13 @@ public final class AudioDocument: @MainActor Document {
 
     /// Keeps only the selection.
     public func trimToSelection(undoManager: UndoManager?) {
-        guard isEditable, let selection, !selection.isEmpty else { return }
+        guard let selection, !selection.isEmpty else { return }
         apply(editList.trimmed(to: selection), name: "Trim to Selection", undoManager: undoManager)
     }
 
     /// Removes the selection and closes the gap.
     public func deleteSelection(undoManager: UndoManager?) {
-        guard isEditable, let selection, !selection.isEmpty else { return }
+        guard let selection, !selection.isEmpty else { return }
         apply(editList.deleting(selection), name: "Delete Selection", undoManager: undoManager)
     }
 
@@ -184,7 +171,7 @@ public final class AudioDocument: @MainActor Document {
     nonisolated public func reader(
         configuration: sending DocumentReadConfiguration
     ) -> sending AudioDocumentReader {
-        AudioDocumentReader(contentType: configuration.contentType)
+        AudioDocumentReader()
     }
 
     nonisolated public func writer(
@@ -202,7 +189,6 @@ public final class AudioDocument: @MainActor Document {
         peaks = snapshot.peaks
         sourceFormatID = snapshot.sourceFormatID
         sourceName = snapshot.sourceName
-        contentType = snapshot.sourceContentType
         selection = nil
         insertionPoint = 0
         renderedCache = nil

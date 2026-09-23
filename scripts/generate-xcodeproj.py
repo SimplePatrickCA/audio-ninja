@@ -50,6 +50,10 @@ SHARED_SETTINGS = {
     "ALWAYS_SEARCH_USER_PATHS": "NO",
     "CLANG_ENABLE_MODULES": "YES",
     "CLANG_ENABLE_OBJC_ARC": "YES",
+    # As Xcode's project template sets it. Embedded frameworks are copied as shipped: the prebuilt
+    # LAME.framework is already stripped, and its macOS slice is signed, so stripping it on copy
+    # only produces a warning.
+    "COPY_PHASE_STRIP": "NO",
     "ENABLE_STRICT_OBJC_MSGSEND": "YES",
     "GCC_NO_COMMON_BLOCKS": "YES",
     "SDKROOT": "auto",
@@ -83,7 +87,7 @@ APP_SETTINGS = {
     # Store Connect rejects in an iOS binary.
     '"CODE_SIGN_ENTITLEMENTS[sdk=macosx*]"': "Support/AudioNinja.entitlements",
     "CODE_SIGN_STYLE": "Automatic",
-    "CURRENT_PROJECT_VERSION": "4",
+    "CURRENT_PROJECT_VERSION": "5",
     "DEVELOPMENT_TEAM": TEAM_ID,
     "ENABLE_HARDENED_RUNTIME": "YES",
     "ENABLE_PREVIEWS": "YES",
@@ -113,6 +117,10 @@ APP_SETTINGS = {
         '"UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft '
         'UIInterfaceOrientationLandscapeRight"'
     ),
+    # Where the embedded LAME.framework is found at launch. Without these the app builds but dyld
+    # cannot load it: a Debug build only runs because Xcode adds the build folder as a runpath.
+    "LD_RUNPATH_SEARCH_PATHS": ['"$(inherited)"', '"@executable_path/Frameworks"'],
+    '"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]"': ['"$(inherited)"', '"@executable_path/../Frameworks"'],
     "MARKETING_VERSION": "1.0",
     "PRODUCT_BUNDLE_IDENTIFIER": BUNDLE_ID,
     "PRODUCT_NAME": '"$(TARGET_NAME)"',
@@ -124,11 +132,20 @@ APP_SETTINGS = {
 }
 
 
+def setting_value(value, pad):
+    """A string as is; a list the way Xcode writes one, an item per line."""
+    if isinstance(value, str):
+        return value
+    items = "".join(f"{pad}\t{item},\n" for item in value)
+    return f"(\n{items}{pad})"
+
+
 def settings_block(pairs, indent):
     pad = "\t" * indent
     # Xcode orders keys as if their quotes were not there.
     return "".join(
-        f"{pad}{k} = {v};\n" for k, v in sorted(pairs.items(), key=lambda kv: kv[0].strip('"'))
+        f"{pad}{k} = {setting_value(v, pad)};\n"
+        for k, v in sorted(pairs.items(), key=lambda kv: kv[0].strip('"'))
     )
 
 

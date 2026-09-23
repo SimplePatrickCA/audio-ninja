@@ -17,6 +17,11 @@ struct TransportBar: View {
     @AppStorage(WaveformSettings.showsSeparateChannelsKey)
     private var showsSeparateChannels = false
     @Namespace private var glass
+    #if os(macOS)
+    @Environment(\.openWindow) private var openWindow
+    #else
+    @State private var showsAcknowledgements = false
+    #endif
 
     var body: some View {
         GlassEffectContainer(spacing: 18) {
@@ -35,14 +40,14 @@ struct TransportBar: View {
                 }
             }
         }
-        .animation(.snappy(duration: 0.28), value: document.isEditable && document.hasSelection)
+        .animation(.snappy(duration: 0.28), value: document.hasSelection)
         .padding(.horizontal, 20)
         .padding(.bottom, 14)
     }
 
     @ViewBuilder
     private var cutClusterIfSelected: some View {
-        if document.isEditable, document.hasSelection {
+        if document.hasSelection {
             cutCluster
                 .transition(.blurReplace)
         }
@@ -100,6 +105,14 @@ struct TransportBar: View {
                     }
                 }
                 .disabled(document.isEmpty)
+                Divider()
+                Button("Acknowledgements", systemImage: "info.circle") {
+                    #if os(macOS)
+                    openWindow(id: AcknowledgementsView.windowID)
+                    #else
+                    showsAcknowledgements = true
+                    #endif
+                }
             } label: {
                 Label("Options", systemImage: "ellipsis")
                     .labelStyle(.iconOnly)
@@ -110,6 +123,11 @@ struct TransportBar: View {
             .menuIndicator(.hidden)
             .focusable(false)
             .help("Display and export options")
+            #if os(iOS)
+            .sheet(isPresented: $showsAcknowledgements) {
+                AcknowledgementsView()
+            }
+            #endif
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 8)
@@ -150,7 +168,7 @@ struct TransportBar: View {
     }
 }
 
-extension View {
+private extension View {
     /// Glass normally, an opaque capsule when the viewer has asked for reduced transparency.
     /// Treated as a required path rather than polish: glass over a full-scale waveform can fail
     /// contrast, and this is the fallback that keeps the controls legible.

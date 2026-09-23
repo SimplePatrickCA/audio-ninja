@@ -7,6 +7,9 @@ struct AppCommands: Commands {
     @FocusedValue(\.audioDocument) private var document
     @FocusedValue(\.exportAudio) private var export
     @Environment(\.undoManager) private var undoManager
+    #if os(macOS)
+    @Environment(\.openWindow) private var openWindow
+    #endif
 
     @AppStorage(WaveformSettings.showsSeparateChannelsKey)
     private var showsSeparateChannels = false
@@ -22,8 +25,10 @@ struct AppCommands: Commands {
         }
 
         #if os(macOS)
-        // The default Help item only says that no help exists.
-        CommandGroup(replacing: .help) {}
+        // Replaces the default Help item, which would otherwise only say that no help exists.
+        CommandGroup(replacing: .help) {
+            Button("Acknowledgements") { openWindow(id: AcknowledgementsView.windowID) }
+        }
         #endif
 
         CommandGroup(after: .toolbar) {
@@ -36,13 +41,13 @@ struct AppCommands: Commands {
                 document?.trimToSelection(undoManager: undoManager)
             }
             .keyboardShortcut("t", modifiers: .command)
-            .disabled(document?.isEditable != true || document?.hasSelection != true)
+            .disabled(document?.hasSelection != true)
 
             Button("Delete Selection") {
                 document?.deleteSelection(undoManager: undoManager)
             }
             .keyboardShortcut(.delete, modifiers: [])
-            .disabled(document?.isEditable != true || document?.hasSelection != true)
+            .disabled(document?.hasSelection != true)
 
             Divider()
 
