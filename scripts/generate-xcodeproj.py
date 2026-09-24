@@ -87,7 +87,7 @@ APP_SETTINGS = {
     # Store Connect rejects in an iOS binary.
     '"CODE_SIGN_ENTITLEMENTS[sdk=macosx*]"': "Support/AudioNinja.entitlements",
     "CODE_SIGN_STYLE": "Automatic",
-    "CURRENT_PROJECT_VERSION": "6",
+    "CURRENT_PROJECT_VERSION": "7",
     "DEVELOPMENT_TEAM": TEAM_ID,
     "ENABLE_HARDENED_RUNTIME": "YES",
     "ENABLE_PREVIEWS": "YES",
