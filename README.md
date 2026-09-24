@@ -9,9 +9,15 @@ Built with Swift 6.4 and SwiftUI, targeting macOS 27 and iOS 27.
 - Opens WAV, AIFF, CAF, MP3, M4A and FLAC
 - Draws the waveform — one lane for the file by default, or one per channel if you turn on
   **Show Separate Channels** (⇧⌘L, or the ••• button)
-- Click to place the cursor, drag to select. Play starts from the selection, or from the cursor,
-  or from the beginning if neither is set
+- Click to place the cursor, drag to select. The cursor and both edges of a selection are labelled
+  with their time, to the hundredth of a second. Play starts from the selection, or from the
+  cursor, or from the beginning if neither is set
 - **Trim to selection** and **delete selection**, with unlimited undo and redo
+- After a cut, the original appears above the waveform with what was removed hatched out and its
+  times listed, and a dashed marker shows where the waveform closed up. The selection and the
+  playhead are shown on the original too. It stays until the next export, until the file is closed,
+  or until you hide it; saving doesn't clear it, because both platforms save on their own seconds
+  after every cut
 - Saves every format it opens back in place, MP3 included. An M4A opened as Apple Lossless is
   saved as Apple Lossless; otherwise M4A means AAC
 - **Export As** (the ••• menu, or File ▸ Export As on macOS) writes a copy as M4A, MP3, WAV, AIFF,

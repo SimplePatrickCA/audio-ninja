@@ -32,6 +32,10 @@ public final class AudioDocument: @MainActor Document {
     /// Which parts of `original` survive. This is the entire edited state.
     public private(set) var editList = EditList(fullLength: 0)
 
+    /// The audio that cuts are shown against: the edit list as the file was opened, or as it stood
+    /// at the last export or the last time the viewer dismissed the overview. See `cutOverview`.
+    public private(set) var cutReference = EditList(fullLength: 0)
+
     /// Peaks over `original`, computed once by the reader.
     public private(set) var peaks: PeakCache?
 
@@ -77,6 +81,22 @@ public final class AudioDocument: @MainActor Document {
         // A cursor at the very end would otherwise make play a silent no-op; replay instead.
         guard start > 0, start < frameCount else { return nil }
         return start..<frameCount
+    }
+
+    /// Where the cuts made since `cutReference` sit in the audio as it was then, so they can be
+    /// seen in the context of the whole. Nil when nothing has been cut since.
+    public var cutOverview: CutOverview? {
+        CutOverview(before: cutReference, after: editList)
+    }
+
+    /// Makes the audio as it now stands the reference that later cuts are shown against.
+    ///
+    /// Called after an export, and when the viewer closes the overview. Not after a save: both
+    /// platforms autosave on their own a few seconds after every cut (about 3 s on macOS, about
+    /// 25 s on iOS), and nothing tells an autosave from a save the viewer asked for, so the
+    /// overview would disappear before anyone had looked at it.
+    public func resetCutReference() {
+        cutReference = editList
     }
 
     /// The edited audio. Cached because playback asks for it on every transport action.
@@ -186,6 +206,7 @@ public final class AudioDocument: @MainActor Document {
     ) async throws {
         original = snapshot.original
         editList = snapshot.editList
+        cutReference = snapshot.editList
         peaks = snapshot.peaks
         sourceFormatID = snapshot.sourceFormatID
         sourceName = snapshot.sourceName
@@ -207,6 +228,7 @@ extension AudioDocument {
     public func adoptForTesting(_ samples: AudioSamples) {
         original = samples
         editList = EditList(fullLength: samples.frameCount)
+        cutReference = editList
         peaks = PeakCache(samples: samples)
         selection = nil
         insertionPoint = 0

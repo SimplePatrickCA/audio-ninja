@@ -31,9 +31,11 @@ struct WaveformView: View {
                     WaveformShapeView(channelBins: channelBins)
                         .equatable()
                     channelLabels(in: size)
+                    cutMarkers(in: size)
                     insertionPointOverlay(in: size)
                     selectionOverlay(in: size)
                     PlayheadView(document: document, size: size)
+                    lineTimes(in: size)
                 }
             }
             .contentShape(Rectangle())
@@ -52,7 +54,19 @@ struct WaveformView: View {
             }
         }
         .accessibilityLabel("Waveform")
-        .accessibilityValue(document.isEmpty ? "No audio" : document.duration.formattedTime)
+        .accessibilityValue(accessibilityValue)
+    }
+
+    private var accessibilityValue: String {
+        guard !document.isEmpty else { return "No audio" }
+        let length = document.duration.formattedTime
+        if let selection = document.selection, !selection.isEmpty {
+            return "Selected \(time(selection.lowerBound)) to \(time(selection.upperBound)), of \(length)"
+        }
+        if document.insertionPoint > 0 {
+            return "Cursor at \(time(document.insertionPoint)), of \(length)"
+        }
+        return length
     }
 
     /// Names the lanes: L and R for stereo, numbers beyond that. Without this, a stereo file just
@@ -115,6 +129,48 @@ struct WaveformView: View {
                 .overlay(alignment: .leading) {
                     SelectionHandle().offset(x: start - SelectionHandle.width / 2)
                 }
+                .allowsHitTesting(false)
+        }
+    }
+
+    /// The time at each line the viewer has placed: the cursor, or both edges of a selection. Each
+    /// label hangs outside the line it belongs to, so the pair never covers the selection itself.
+    @ViewBuilder
+    private func lineTimes(in size: CGSize) -> some View {
+        if let selection = document.selection, !selection.isEmpty, document.frameCount > 0 {
+            LineLabelsLayout(lines: [
+                .init(x: xPosition(forFrame: selection.lowerBound, width: size.width), side: .leading),
+                .init(x: xPosition(forFrame: selection.upperBound, width: size.width), side: .trailing),
+            ]) {
+                TimeFlag(text: time(selection.lowerBound))
+                TimeFlag(text: time(selection.upperBound))
+            }
+            .frame(width: size.width, height: size.height)
+            .allowsHitTesting(false)
+        } else if document.frameCount > 0, document.insertionPoint > 0 {
+            LineLabelsLayout(lines: [
+                .init(x: xPosition(forFrame: document.insertionPoint, width: size.width), side: .trailing),
+            ]) {
+                TimeFlag(text: time(document.insertionPoint))
+            }
+            .frame(width: size.width, height: size.height)
+            .allowsHitTesting(false)
+        }
+    }
+
+    private func time(_ frame: Int) -> String {
+        Timecode.string(forFrame: frame, sampleRate: document.sampleRate)
+    }
+
+    /// Where the waveform has closed up over a cut. A cut leaves no gap, so without these a cut
+    /// would vanish without trace; the overview above shows what each one took out.
+    @ViewBuilder
+    private func cutMarkers(in size: CGSize) -> some View {
+        if let overview = document.cutOverview, document.frameCount > 0 {
+            let positions = overview.cutPoints.map { xPosition(forFrame: $0, width: size.width) }
+            CutMarkersView(positions: positions)
+                .equatable()
+                .frame(width: size.width, height: size.height)
                 .allowsHitTesting(false)
         }
     }
@@ -252,6 +308,97 @@ private struct PlayheadView: View {
     }
 }
 
+/// A time, flagged beside the line it belongs to.
+private struct TimeFlag: View {
+    let text: String
+
+    var body: some View {
+        Text(text)
+            .font(.caption.monospacedDigit().weight(.medium))
+            .foregroundStyle(.white)
+            .padding(.horizontal, 5)
+            .padding(.vertical, 2)
+            .background(Color.accentColor, in: .rect(cornerRadius: 4))
+            .fixedSize()
+    }
+}
+
+/// Hangs a label beside each line, on the side it prefers unless that would run off the edge of
+/// the waveform, and drops a label a row when it would collide with one already placed. A layout
+/// rather than offsets, because both of those decisions need the labels' measured widths.
+private struct LineLabelsLayout: Layout {
+    struct Line {
+        var x: CGFloat
+        var side: HorizontalEdge
+    }
+
+    var lines: [Line]
+
+    private static let gap: CGFloat = 3
+    private static let top: CGFloat = 6
+    private static let rowSpacing: CGFloat = 3
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        proposal.replacingUnspecifiedDimensions()
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        var placed: [CGRect] = []
+        for (line, subview) in zip(lines, subviews) {
+            let size = subview.sizeThatFits(.unspecified)
+            let x = bounds.minX + line.x
+            let before = x - Self.gap - size.width
+            let after = x + Self.gap
+
+            var originX = line.side == .leading ? before : after
+            if originX < bounds.minX {
+                originX = after
+            } else if originX + size.width > bounds.maxX {
+                originX = before
+            }
+            originX = min(max(originX, bounds.minX), bounds.maxX - size.width)
+
+            var frame = CGRect(origin: CGPoint(x: originX, y: bounds.minY + Self.top), size: size)
+            while placed.contains(where: { $0.insetBy(dx: -Self.gap, dy: 0).intersects(frame) }) {
+                frame.origin.y += size.height + Self.rowSpacing
+            }
+            placed.append(frame)
+            subview.place(at: frame.origin, proposal: ProposedViewSize(size))
+        }
+    }
+}
+
+/// A dashed line at each join, with a notch at the top and bottom like a splice mark on tape.
+private struct CutMarkersView: View, Equatable {
+    let positions: [CGFloat]
+
+    var body: some View {
+        Canvas { context, size in
+            let notch: CGFloat = 5
+            for position in positions {
+                // Kept inside the view, so a cut at the very start or end still shows.
+                let x = min(max(position, notch), size.width - notch)
+
+                var line = Path()
+                line.move(to: CGPoint(x: x, y: 0))
+                line.addLine(to: CGPoint(x: x, y: size.height))
+                context.stroke(line, with: .color(.cutMarker), style: StrokeStyle(lineWidth: 1, dash: [4, 3]))
+
+                var notches = Path()
+                notches.move(to: CGPoint(x: x - notch, y: 0))
+                notches.addLine(to: CGPoint(x: x + notch, y: 0))
+                notches.addLine(to: CGPoint(x: x, y: notch * 1.2))
+                notches.closeSubpath()
+                notches.move(to: CGPoint(x: x - notch, y: size.height))
+                notches.addLine(to: CGPoint(x: x + notch, y: size.height))
+                notches.addLine(to: CGPoint(x: x, y: size.height - notch * 1.2))
+                notches.closeSubpath()
+                context.fill(notches, with: .color(.cutMarker))
+            }
+        }
+    }
+}
+
 private struct SelectionHandle: View {
     static let width: CGFloat = 3
 
@@ -266,6 +413,10 @@ extension Color {
     static let waveformBackground = Color(white: 0.5).opacity(0.08)
     static let waveformForeground = Color.accentColor
     static let playhead = Color.red
+    /// Cuts, on the waveform and in the overview. Orange against the default blue is a pair that
+    /// holds up for the common forms of colour blindness, and the dashes and hatching carry the
+    /// meaning for anyone who cannot tell it from the red playhead.
+    static let cutMarker = Color.orange
 }
 
 extension Duration {

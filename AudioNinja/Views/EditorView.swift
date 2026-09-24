@@ -2,7 +2,8 @@ import AudioNinjaKit
 import SwiftUI
 import UniformTypeIdentifiers
 
-/// The document window: waveform filling the space, controls floating over it.
+/// The document window: waveform filling the space, controls floating over it, and, once
+/// something has been cut, the original above it for context.
 struct EditorView: View {
     @Bindable var document: AudioDocument
 
@@ -15,6 +16,13 @@ struct EditorView: View {
     var body: some View {
         WaveformView(document: document)
             .ignoresSafeArea(edges: .horizontal)
+            .safeAreaInset(edge: .top, spacing: 0) {
+                if let overview = document.cutOverview {
+                    CutOverviewView(document: document, overview: overview)
+                        .transition(.move(edge: .top).combined(with: .opacity))
+                }
+            }
+            .animation(.snappy(duration: 0.28), value: document.cutOverview == nil)
             // safeAreaInset rather than an overlay: the waveform's usable height stays correct, the
             // iOS home indicator is accounted for, and macOS window resizing behaves.
             .safeAreaInset(edge: .bottom, spacing: 0) {
@@ -40,7 +48,11 @@ struct EditorView: View {
                 contentType: exportType,
                 defaultFilename: document.sourceName,
                 onCompletion: { result in
-                    if case let .failure(error) = result {
+                    switch result {
+                    case .success:
+                        // The exported audio is the new original: later cuts show against it.
+                        document.resetCutReference()
+                    case let .failure(error):
                         exportError = ExportError(underlying: error)
                     }
                 }

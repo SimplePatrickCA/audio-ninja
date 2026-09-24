@@ -186,6 +186,57 @@ struct AudioDocumentEditTests {
         #expect(document.selection == 0..<5_000)
     }
 
+    @Test("A cut shows against the audio as it was, until the reference is reset")
+    @MainActor
+    func cutOverviewFollowsEdits() async throws {
+        let (document, directory) = try await loadedDocument()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let undo = freshUndoManager()
+        #expect(document.cutOverview == nil)
+
+        document.selection = 2_000..<3_000
+        asOneStep(undo) { document.deleteSelection(undoManager: undo) }
+        let overview = try #require(document.cutOverview)
+        #expect(overview.frameCount == 10_000)
+        #expect(overview.removed == [2_000..<3_000])
+        #expect(overview.cutPoints == [2_000])
+
+        // The overview comes and goes with the cut.
+        undo.undo()
+        #expect(document.cutOverview == nil)
+        undo.redo()
+        #expect(document.cutOverview?.removed == [2_000..<3_000])
+
+        // As after an export: later cuts show against the audio as it was exported.
+        document.resetCutReference()
+        #expect(document.cutOverview == nil)
+        document.selection = 0..<1_000
+        asOneStep(undo) { document.deleteSelection(undoManager: undo) }
+        #expect(document.cutOverview?.frameCount == 9_000)
+        #expect(document.cutOverview?.removed == [0..<1_000])
+    }
+
+    @Test("Opening a file starts a fresh reference")
+    @MainActor
+    func openingResetsReference() async throws {
+        let (document, directory) = try await loadedDocument()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let undo = freshUndoManager()
+
+        document.selection = 0..<5_000
+        asOneStep(undo) { document.deleteSelection(undoManager: undo) }
+        #expect(document.cutOverview != nil)
+
+        // What the platform does on a revert, or when the file changes on disk.
+        let manager = ProgressManager(totalCount: 1)
+        let snapshot = try await AudioDocumentReader().read(
+            from: directory.appendingPathComponent("in.wav"),
+            progress: manager.subprogress(assigningCount: 1)
+        )
+        try await document.apply(snapshot: snapshot, previous: nil)
+        #expect(document.cutOverview == nil)
+    }
+
     @Test("Rendered audio reflects the cut and is cached until the edit list changes")
     @MainActor
     func renderedSamplesFollowEdits() async throws {
