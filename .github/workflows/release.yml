@@ -1,0 +1,145 @@
+name: Release
+
+# Tagging v1.2.3 publishes a release. A manual run builds and uploads the same
+# artifact as a workflow artifact without creating a release, so the pipeline can
+# be exercised without spending a version number on it.
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to stamp into the build (dry run; no release is created)'
+        required: true
+        default: '0.0.0-dev'
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  macos:
+    name: Build and publish the macOS app
+    # See the note in ci.yml: xcode-27 is the only hosted image with the 27 SDKs.
+    runs-on: xcode-27
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Work out the version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "push" ]; then
+            VERSION="${GITHUB_REF_NAME#v}"
+            echo "release=true" >> "$GITHUB_OUTPUT"
+          else
+            VERSION="${{ inputs.version }}"
+            echo "release=false" >> "$GITHUB_OUTPUT"
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Building version $VERSION"
+
+      - name: Record the toolchain
+        run: |
+          xcodebuild -version
+          sw_vers
+
+      # Gate the release on the tests. A tag should not be able to publish a build
+      # that the suite would have rejected.
+      - name: Logic tests
+        run: swift test --package-path Packages/AudioNinjaKit
+
+      # Ad-hoc signed ("-"), not Developer ID. arm64 macOS refuses to run a wholly
+      # unsigned binary, so signing cannot simply be switched off here as it is in
+      # ci.yml. See the release notes below for what this means for the person
+      # downloading it.
+      # Hardened runtime off: its library validation refuses to load the embedded
+      # LAME.framework into an app with no Team ID, so the app would not launch.
+      # It only matters for notarization, which an ad-hoc build cannot have anyway.
+      - name: Build
+        run: |
+          xcodebuild -project AudioNinja.xcodeproj -scheme AudioNinja \
+            -destination 'platform=macOS' -configuration Release \
+            -derivedDataPath build/dd \
+            CODE_SIGN_IDENTITY="-" CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM="" \
+            CODE_SIGNING_REQUIRED=YES CODE_SIGNING_ALLOWED=YES \
+            ENABLE_HARDENED_RUNTIME=NO \
+            MARKETING_VERSION="${{ steps.version.outputs.version }}" \
+            CURRENT_PROJECT_VERSION="${{ github.run_number }}" \
+            build
+
+      - name: Verify the signature
+        run: |
+          APP=build/dd/Build/Products/Release/AudioNinja.app
+          codesign --verify --strict --verbose=2 "$APP"
+          codesign -dv --verbose=2 "$APP" 2>&1
+
+      # ditto, not zip: it preserves the bundle's symlinks and extended attributes,
+      # and a zip(1) archive of a .app can arrive with a broken signature.
+      - name: Package
+        id: package
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          NAME="AudioNinja-${VERSION}-macOS-arm64.zip"
+          ditto -c -k --keepParent build/dd/Build/Products/Release/AudioNinja.app "$NAME"
+          shasum -a 256 "$NAME" | tee "${NAME}.sha256"
+          echo "name=$NAME" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: AudioNinja-macOS-${{ steps.version.outputs.version }}
+          path: |
+            ${{ steps.package.outputs.name }}
+            ${{ steps.package.outputs.name }}.sha256
+          retention-days: 14
+
+      - name: Publish the release
+        if: steps.version.outputs.release == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          NAME="${{ steps.package.outputs.name }}"
+          CHECKSUM=$(shasum -a 256 "$NAME" | awk '{print $1}')
+
+          cat > notes.md <<NOTES
+          ## Audio Ninja $VERSION
+
+          ### Requirements
+
+          macOS 27 or later, Apple silicon. macOS 27 dropped Intel support, so there
+          is no x86_64 build and a universal binary would carry a slice nothing can run.
+
+          ### Opening it the first time
+
+          This build is **ad-hoc signed, not notarized**, so Gatekeeper will refuse it
+          on the first launch. After moving it to /Applications, either right-click the
+          app and choose Open, or run:
+
+          \`\`\`
+          xattr -dr com.apple.quarantine /Applications/AudioNinja.app
+          \`\`\`
+
+          Publishing a build that opens without this needs a Developer ID certificate
+          and notarization — see RELEASING.md.
+
+          ### Checksum
+
+          \`\`\`
+          $CHECKSUM  $NAME
+          \`\`\`
+
+          ### Third-party code
+
+          Includes the LAME MP3 encoder (LGPL-2.0-or-later), unmodified, as the embedded
+          dynamic LAME.framework. Read [THIRD-PARTY-LICENSES.md](${{ github.server_url }}/${{ github.repository }}/blob/main/THIRD-PARTY-LICENSES.md)
+          before redistributing this build.
+          NOTES
+
+          gh release create "$GITHUB_REF_NAME" \
+            --title "Audio Ninja $VERSION" \
+            --notes-file notes.md \
+            "$NAME" "${NAME}.sha256"

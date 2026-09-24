@@ -1,0 +1,97 @@
+name: CI
+
+# Only main and PRs into it. Pushes to a topic branch that already has a PR would
+# otherwise build it twice, and macOS runners are billed minutes on a private repo.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  # scripts/generate-xcodeproj.py imports nothing but pathlib and sys, so this needs
+  # neither Xcode nor macOS. Keeping it on Linux keeps it off the metered runner.
+  project-in-sync:
+    name: Project matches its generator
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Regenerate the project
+        run: python3 scripts/generate-xcodeproj.py
+
+      - name: Fail if the committed project differs
+        run: |
+          if ! git diff --quiet -- AudioNinja.xcodeproj/project.pbxproj; then
+            echo "::error file=AudioNinja.xcodeproj/project.pbxproj::AudioNinja.xcodeproj does not match scripts/generate-xcodeproj.py. Run the script and commit the result."
+            git diff -- AudioNinja.xcodeproj/project.pbxproj
+            exit 1
+          fi
+
+  # One job rather than a matrix: each job pays its own runner start-up, and on a
+  # private repo every macOS minute is billed. Steps still report failures individually.
+  macos:
+    name: Test and build
+    # Not macos-latest. That image is macOS 26 / Xcode 26, which cannot build this
+    # project: it needs the macOS 27 and iOS 27 SDKs and Swift 6.4. The xcode-27
+    # image is the only hosted runner that has them, and it is arm64-only.
+    # It is still in public preview, so expect occasional queueing.
+    runs-on: xcode-27
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Record the toolchain
+        run: |
+          xcodebuild -version
+          swift --version
+          sw_vers
+
+      # The bulk of the confidence lives here: no Xcode project, no simulator,
+      # no code signing, and it runs in seconds.
+      - name: Logic tests
+        run: swift test --package-path Packages/AudioNinjaKit
+
+      # The app shows LAME's licence on its Acknowledgements screen. The LGPL requires the
+      # shipped text to be the real one, so it must match the package the app is built with.
+      - name: Fail if the bundled LAME licence differs from the package's
+        run: |
+          if ! cmp -s Packages/AudioNinjaKit/.build/checkouts/LAME-xcframework/COPYING AudioNinja/Resources/LAME-LICENSE.txt; then
+            echo "::error file=AudioNinja/Resources/LAME-LICENSE.txt::Does not match COPYING in the LAME-xcframework package. Copy it again."
+            exit 1
+          fi
+
+      # Signing is disabled throughout: these builds are only ever compiled, never
+      # run or shipped, and the runner has no signing identity. release.yml is the
+      # one that produces a signed artifact.
+      - name: Build for macOS
+        run: |
+          xcodebuild -project AudioNinja.xcodeproj -scheme AudioNinja \
+            -destination 'platform=macOS' -configuration Debug \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
+            build
+
+      # Generic destinations rather than a named device, so an image update that
+      # retires a simulator model cannot break the build.
+      - name: Build for the iOS Simulator
+        run: |
+          xcodebuild -project AudioNinja.xcodeproj -scheme AudioNinja \
+            -destination 'generic/platform=iOS Simulator' -configuration Debug \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
+            build
+
+      - name: Build for iOS devices
+        run: |
+          xcodebuild -project AudioNinja.xcodeproj -scheme AudioNinja \
+            -destination 'generic/platform=iOS' -configuration Debug \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
+            build
