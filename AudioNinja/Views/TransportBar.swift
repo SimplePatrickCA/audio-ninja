@@ -172,13 +172,18 @@ private extension View {
     /// Glass normally, an opaque capsule when the viewer has asked for reduced transparency.
     /// Treated as a required path rather than polish: glass over a full-scale waveform can fail
     /// contrast, and this is the fallback that keeps the controls legible.
+    ///
+    /// Not `.interactive()` glass. That makes the whole capsule respond to touches, and the •••
+    /// menu opens over this capsule with its first item directly on top of it: on iOS the capsule
+    /// took the tap, so Show Separate Channels needed several tries. The buttons inside have
+    /// their own glass styles, which already respond to presses.
     @ViewBuilder
     func floatingSurface(reduceTransparency: Bool) -> some View {
         if reduceTransparency {
             background(.background, in: .capsule)
                 .overlay(Capsule().strokeBorder(.separator))
         } else {
-            glassEffect(.regular.interactive(), in: .capsule)
+            glassEffect(.regular, in: .capsule)
         }
     }
 }
