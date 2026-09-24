@@ -102,6 +102,7 @@ Connect record covering both iOS and macOS.
    | 3 | iOS, macOS | iPhone layout fix (controls overflowed the screen) |
    | 4 | iOS, macOS | One document type, MP3 read-only (build 3 crashed in SwiftUI's document cast on iOS) |
    | 5 | iOS, macOS | MP3 editing and export, through LAME (LAME-xcframework 3.100.3) |
+   | 6 | iOS, macOS | Time labels on the cursor and selection; the original shown above the waveform after a cut |
 5. Upload with the **release** Xcode 27, not a beta. App Store Connect refuses builds from
    beta toolchains.
 
