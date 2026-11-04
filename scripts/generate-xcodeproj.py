@@ -7,7 +7,8 @@ check only catches real differences. A setting changed in Xcode's editor must be
 
 Hand-maintaining a pbxproj is unpleasant, and neither xcodegen nor tuist is installed. This
 generator keeps the file reproducible and reviewable: the project is small (one multiplatform app
-target, an iOS share extension built into Debug and TestFlight only, a local package and one pinned remote package), and
+target; an iOS share extension and framework built into Debug and TestFlight only; a local package
+and one pinned remote package), and
 because each target's sources live in a PBXFileSystemSynchronizedRootGroup, adding Swift files
 never requires regenerating it.
 """
@@ -67,16 +68,36 @@ ID = {
     "projectTestFlight": "A0000000000000000000027",
     "appTestFlight":     "A0000000000000000000028",
     "shareTestFlight":   "A0000000000000000000029",
+    # AudioNinjaYouTube.framework: YouTubeKit and the code the extension and the app share.
+    "ytTarget":          "A000000000000000000002A",
+    "ytProduct":         "A000000000000000000002B",
+    "ytSyncGroup":       "A000000000000000000002C",
+    "ytSources":         "A000000000000000000002D",
+    "ytFrameworks":      "A000000000000000000002E",
+    "ytResources":       "A000000000000000000002F",
+    "ytConfigs":         "A0000000000000000000030",
+    "ytDebug":           "A0000000000000000000031",
+    "ytRelease":         "A0000000000000000000032",
+    "ytTestFlight":      "A0000000000000000000033",
+    "ytAppLinkFile":     "A0000000000000000000034",
+    "ytAppEmbedFile":    "A0000000000000000000035",
+    "ytShareLinkFile":   "A0000000000000000000036",
+    "ytEmbedPhase":      "A0000000000000000000037",
+    "ytAppDependency":   "A0000000000000000000038",
+    "ytAppProxy":        "A0000000000000000000039",
+    "ytShareDependency": "A000000000000000000003A",
+    "ytShareProxy":      "A000000000000000000003B",
 }
 
 SHARE = f"{APP}Share"
+YT = f"{APP}YouTube"
 # Exactly this version: extraction tracks YouTube's undocumented internals, so an unreviewed
 # update could change what the extension does.
 YOUTUBEKIT_URL = "https://github.com/alexeichhorn/YouTubeKit"
 YOUTUBEKIT_VERSION = "0.4.10"
 
 MARKETING_VERSION = "1.1.0"
-BUILD_NUMBER = "8"
+BUILD_NUMBER = "9"
 
 SHARED_SETTINGS = {
     "ALWAYS_SEARCH_USER_PATHS": "NO",
@@ -174,18 +195,22 @@ APP_SETTINGS = {
 APP_YOUTUBE = {
     '"INFOPLIST_PREPROCESSOR_DEFINITIONS[sdk=iphoneos*]"': "\"YOUTUBE_SHARE=1\"",
     '"INFOPLIST_PREPROCESSOR_DEFINITIONS[sdk=iphonesimulator*]"': "\"YOUTUBE_SHARE=1\"",
-    # Compiles AudioNinja/Views/YouTubeShareReceiver.swift; $(inherited) keeps Debug's DEBUG.
+    # Compiles AudioNinja/Views/YouTubeShareReceiver.swift and YouTubeImportSheet.swift (Import from
+    # YouTube on the launch screen); $(inherited) keeps Debug's DEBUG.
     '"SWIFT_ACTIVE_COMPILATION_CONDITIONS[sdk=iphoneos*]"': '"$(inherited) YOUTUBE_SHARE"',
     '"SWIFT_ACTIVE_COMPILATION_CONDITIONS[sdk=iphonesimulator*]"': '"$(inherited) YOUTUBE_SHARE"',
 }
 APP_RELEASE_ONLY = {
-    # The extension target still builds (a target dependency cannot vary by configuration), but
-    # Release leaves it out of the embed phase, so it never reaches the app bundle.
-    "EXCLUDED_SOURCE_FILE_NAMES": f"{SHARE}.appex",
+    # The extension and framework targets still build (a target dependency cannot vary by
+    # configuration), but Release leaves them out of the link and embed phases, so neither reaches
+    # the app bundle. YouTubeKit lives in the framework because a package product linked into the
+    # app directly cannot be left out this way: its resource bundle is copied regardless.
+    "EXCLUDED_SOURCE_FILE_NAMES": f'"{SHARE}.appex {YT}.framework"',
 }
 
-# The share extension: "Share > Audio Ninja" in the YouTube app. Embedded in Debug and TestFlight. It resolves the video's audio
-# stream with YouTubeKit and hands it to the app, which downloads and opens it. iOS only.
+# The share extension: "Share > Audio Ninja" in the YouTube app. Embedded in Debug and TestFlight. It
+# resolves the video's audio stream with AudioNinjaYouTube and hands it to the app, which downloads
+# and opens it. iOS only.
 SHARE_SETTINGS = {
     "CODE_SIGN_STYLE": "Automatic",
     "CURRENT_PROJECT_VERSION": BUILD_NUMBER,
@@ -205,6 +230,35 @@ SHARE_SETTINGS = {
     "SUPPORTED_PLATFORMS": '"iphoneos iphonesimulator"',
     "SWIFT_DEFAULT_ACTOR_ISOLATION": "MainActor",
     "SWIFT_EMIT_LOC_STRINGS": "YES",
+    "TARGETED_DEVICE_FAMILY": '"1,2"',
+}
+
+
+# AudioNinjaYouTube.framework: YouTubeKit, link parsing and the stream lookup, for the extension and
+# the app's Import from YouTube. Embedded in the app in Debug and TestFlight; the extension loads the
+# app's copy. iOS only.
+YT_SETTINGS = {
+    # The extension links it.
+    "APPLICATION_EXTENSION_API_ONLY": "YES",
+    "CODE_SIGN_STYLE": "Automatic",
+    "CURRENT_PROJECT_VERSION": BUILD_NUMBER,
+    "DEVELOPMENT_TEAM": TEAM_ID,
+    "DYLIB_COMPATIBILITY_VERSION": "1",
+    "DYLIB_CURRENT_VERSION": "1",
+    "DYLIB_INSTALL_NAME_BASE": '"@rpath"',
+    "GENERATE_INFOPLIST_FILE": "YES",
+    "INFOPLIST_KEY_NSHumanReadableCopyright": '""',
+    "INSTALL_PATH": '"$(LOCAL_LIBRARY_DIR)/Frameworks"',
+    "LD_RUNPATH_SEARCH_PATHS": [
+        '"$(inherited)"', '"@executable_path/Frameworks"', '"@loader_path/Frameworks"',
+    ],
+    "MARKETING_VERSION": MARKETING_VERSION,
+    "PRODUCT_BUNDLE_IDENTIFIER": f"{BUNDLE_ID}.YouTube",
+    "PRODUCT_NAME": '"$(TARGET_NAME:c99extidentifier)"',
+    "SDKROOT": "iphoneos",
+    "SKIP_INSTALL": "YES",
+    "SUPPORTED_PLATFORMS": '"iphoneos iphonesimulator"',
+    "SWIFT_INSTALL_OBJC_HEADER": "NO",
     "TARGETED_DEVICE_FAMILY": '"1,2"',
 }
 
@@ -283,8 +337,14 @@ def main():
     # Release builds the extension only because the dependency cannot vary by configuration, and
     # never embeds it; unsigned, it needs no App ID or profile when archiving for the App Store.
     share_release = {**SHARE_SETTINGS, "CODE_SIGNING_ALLOWED": "NO"}
+    yt_debug = dict(YT_SETTINGS)
+    yt_testflight = dict(YT_SETTINGS)
+    # Likewise built in Release but never linked or embedded.
+    yt_release = {**YT_SETTINGS, "CODE_SIGNING_ALLOWED": "NO"}
 
     embed_name = f"{SHARE}.appex in Embed Foundation Extensions"
+    yt_link_name = f"{YT}.framework in Frameworks"
+    yt_embed_name = f"{YT}.framework in Embed Frameworks"
 
     out = []
     w = out.append
@@ -302,6 +362,13 @@ def main():
       f"settings = {{ATTRIBUTES = (RemoveHeadersOnCopy, ); }}; }};\n")
     w(f"\t\t{ID['ytkBuildFile']} /* YouTubeKit in Frameworks */ = {{isa = PBXBuildFile; "
       f"productRef = {ID['ytkProduct']} /* YouTubeKit */; }};\n")
+    w(f"\t\t{ID['ytAppLinkFile']} /* {yt_link_name} */ = {{isa = PBXBuildFile; "
+      f"fileRef = {ID['ytProduct']} /* {YT}.framework */; platformFilters = (ios, ); }};\n")
+    w(f"\t\t{ID['ytAppEmbedFile']} /* {yt_embed_name} */ = {{isa = PBXBuildFile; "
+      f"fileRef = {ID['ytProduct']} /* {YT}.framework */; platformFilters = (ios, ); "
+      f"settings = {{ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }}; }};\n")
+    w(f"\t\t{ID['ytShareLinkFile']} /* {yt_link_name} */ = {{isa = PBXBuildFile; "
+      f"fileRef = {ID['ytProduct']} /* {YT}.framework */; }};\n")
     w("/* End PBXBuildFile section */\n\n")
 
     w("/* Begin PBXContainerItemProxy section */\n")
@@ -312,6 +379,14 @@ def main():
       f"\t\t\tremoteGlobalIDString = {ID['shareTarget']};\n"
       f"\t\t\tremoteInfo = {SHARE};\n"
       f"\t\t}};\n")
+    for proxy in (ID["ytAppProxy"], ID["ytShareProxy"]):
+        w(f"\t\t{proxy} /* PBXContainerItemProxy */ = {{\n"
+          f"\t\t\tisa = PBXContainerItemProxy;\n"
+          f"\t\t\tcontainerPortal = {ID['project']} /* Project object */;\n"
+          f"\t\t\tproxyType = 1;\n"
+          f"\t\t\tremoteGlobalIDString = {ID['ytTarget']};\n"
+          f"\t\t\tremoteInfo = {YT};\n"
+          f"\t\t}};\n")
     w("/* End PBXContainerItemProxy section */\n\n")
 
     w("/* Begin PBXCopyFilesBuildPhase section */\n")
@@ -322,6 +397,15 @@ def main():
       f"\t\t\tdstSubfolderSpec = 13;\n"
       f"\t\t\tfiles = (\n\t\t\t\t{ID['embedBuildFile']} /* {embed_name} */,\n\t\t\t);\n"
       f'\t\t\tname = "Embed Foundation Extensions";\n'
+      f"\t\t\trunOnlyForDeploymentPostprocessing = 0;\n"
+      f"\t\t}};\n")
+    w(f"\t\t{ID['ytEmbedPhase']} /* Embed Frameworks */ = {{\n"
+      f"\t\t\tisa = PBXCopyFilesBuildPhase;\n"
+      f"\t\t\tbuildActionMask = 2147483647;\n"
+      f'\t\t\tdstPath = "";\n'
+      f"\t\t\tdstSubfolderSpec = 10;\n"
+      f"\t\t\tfiles = (\n\t\t\t\t{ID['ytAppEmbedFile']} /* {yt_embed_name} */,\n\t\t\t);\n"
+      f'\t\t\tname = "Embed Frameworks";\n'
       f"\t\t\trunOnlyForDeploymentPostprocessing = 0;\n"
       f"\t\t}};\n")
     w("/* End PBXCopyFilesBuildPhase section */\n\n")
@@ -339,10 +423,13 @@ def main():
       f"path = {SHARE}.appex; sourceTree = BUILT_PRODUCTS_DIR; }};\n")
     w(f"\t\t{ID['shareInfoPlist']} /* {SHARE}-Info.plist */ = {{isa = PBXFileReference; "
       f'lastKnownFileType = text.plist.xml; path = "{SHARE}-Info.plist"; sourceTree = "<group>"; }};\n')
+    w(f"\t\t{ID['ytProduct']} /* {YT}.framework */ = {{isa = PBXFileReference; "
+      f"explicitFileType = wrapper.framework; includeInIndex = 0; "
+      f"path = {YT}.framework; sourceTree = BUILT_PRODUCTS_DIR; }};\n")
     w("/* End PBXFileReference section */\n\n")
 
     w("/* Begin PBXFileSystemSynchronizedRootGroup section */\n")
-    for group, path in [(ID["syncGroup"], APP), (ID["shareSyncGroup"], SHARE)]:
+    for group, path in [(ID["syncGroup"], APP), (ID["shareSyncGroup"], SHARE), (ID["ytSyncGroup"], YT)]:
         w(f"\t\t{group} /* {path} */ = {{\n"
           f"\t\t\tisa = PBXFileSystemSynchronizedRootGroup;\n"
           f"\t\t\tpath = {path};\n"
@@ -352,8 +439,11 @@ def main():
 
     w("/* Begin PBXFrameworksBuildPhase section */\n")
     w(build_phase(ID["frameworks"], "PBXFrameworksBuildPhase", "Frameworks",
-                  [f"{ID['pkgBuildFile']} /* AudioNinjaKit in Frameworks */"]))
+                  [f"{ID['pkgBuildFile']} /* AudioNinjaKit in Frameworks */",
+                   f"{ID['ytAppLinkFile']} /* {yt_link_name} */"]))
     w(build_phase(ID["shareFrameworks"], "PBXFrameworksBuildPhase", "Frameworks",
+                  [f"{ID['ytShareLinkFile']} /* {yt_link_name} */"]))
+    w(build_phase(ID["ytFrameworks"], "PBXFrameworksBuildPhase", "Frameworks",
                   [f"{ID['ytkBuildFile']} /* YouTubeKit in Frameworks */"]))
     w("/* End PBXFrameworksBuildPhase section */\n\n")
 
@@ -363,6 +453,7 @@ def main():
       f"\t\t\tchildren = (\n"
       f"\t\t\t\t{ID['syncGroup']} /* {APP} */,\n"
       f"\t\t\t\t{ID['shareSyncGroup']} /* {SHARE} */,\n"
+      f"\t\t\t\t{ID['ytSyncGroup']} /* {YT} */,\n"
       f"\t\t\t\t{ID['supportGroup']} /* Support */,\n"
       f"\t\t\t\t{ID['productsGroup']} /* Products */,\n"
       f"\t\t\t);\n"
@@ -373,6 +464,7 @@ def main():
       f"\t\t\tchildren = (\n"
       f"\t\t\t\t{ID['appProduct']} /* {APP}.app */,\n"
       f"\t\t\t\t{ID['shareProduct']} /* {SHARE}.appex */,\n"
+      f"\t\t\t\t{ID['ytProduct']} /* {YT}.framework */,\n"
       f"\t\t\t);\n"
       f"\t\t\tname = Products;\n"
       f'\t\t\tsourceTree = "<group>";\n'
@@ -393,17 +485,27 @@ def main():
     w(native_target(
         ID["appTarget"], APP, ID["appConfigs"],
         [f"{ID['sources']} /* Sources */", f"{ID['frameworks']} /* Frameworks */",
-         f"{ID['resources']} /* Resources */", f"{ID['embedPhase']} /* Embed Foundation Extensions */"],
+         f"{ID['resources']} /* Resources */", f"{ID['embedPhase']} /* Embed Foundation Extensions */",
+         f"{ID['ytEmbedPhase']} /* Embed Frameworks */"],
         f"{ID['appProduct']} /* {APP}.app */", "com.apple.product-type.application",
         ID["syncGroup"], [f"{ID['pkgProduct']} /* AudioNinjaKit */"],
-        dependencies=[f"{ID['shareDependency']} /* PBXTargetDependency */"],
+        dependencies=[f"{ID['shareDependency']} /* PBXTargetDependency */",
+                      f"{ID['ytAppDependency']} /* PBXTargetDependency */"],
     ))
     w(native_target(
         ID["shareTarget"], SHARE, ID["shareConfigs"],
         [f"{ID['shareSources']} /* Sources */", f"{ID['shareFrameworks']} /* Frameworks */",
          f"{ID['shareResources']} /* Resources */"],
         f"{ID['shareProduct']} /* {SHARE}.appex */", "com.apple.product-type.app-extension",
-        ID["shareSyncGroup"], [f"{ID['ytkProduct']} /* YouTubeKit */"],
+        ID["shareSyncGroup"], [],
+        dependencies=[f"{ID['ytShareDependency']} /* PBXTargetDependency */"],
+    ))
+    w(native_target(
+        ID["ytTarget"], YT, ID["ytConfigs"],
+        [f"{ID['ytSources']} /* Sources */", f"{ID['ytFrameworks']} /* Frameworks */",
+         f"{ID['ytResources']} /* Resources */"],
+        f"{ID['ytProduct']} /* {YT}.framework */", "com.apple.product-type.framework",
+        ID["ytSyncGroup"], [f"{ID['ytkProduct']} /* YouTubeKit */"],
     ))
     w("/* End PBXNativeTarget section */\n\n")
 
@@ -417,6 +519,7 @@ def main():
       f"\t\t\t\tTargetAttributes = {{\n"
       f"\t\t\t\t\t{ID['appTarget']} = {{\n\t\t\t\t\t\tCreatedOnToolsVersion = 27.0;\n\t\t\t\t\t}};\n"
       f"\t\t\t\t\t{ID['shareTarget']} = {{\n\t\t\t\t\t\tCreatedOnToolsVersion = 27.0;\n\t\t\t\t\t}};\n"
+      f"\t\t\t\t\t{ID['ytTarget']} = {{\n\t\t\t\t\t\tCreatedOnToolsVersion = 27.0;\n\t\t\t\t\t}};\n"
       f"\t\t\t\t}};\n"
       f"\t\t\t}};\n"
       f"\t\t\tbuildConfigurationList = {ID['projectConfigs']} /* Build configuration list for PBXProject \"{APP}\" */;\n"
@@ -436,6 +539,7 @@ def main():
       f"\t\t\ttargets = (\n"
       f"\t\t\t\t{ID['appTarget']} /* {APP} */,\n"
       f"\t\t\t\t{ID['shareTarget']} /* {SHARE} */,\n"
+      f"\t\t\t\t{ID['ytTarget']} /* {YT} */,\n"
       f"\t\t\t);\n"
       f"\t\t}};\n")
     w("/* End PBXProject section */\n\n")
@@ -443,11 +547,13 @@ def main():
     w("/* Begin PBXResourcesBuildPhase section */\n")
     w(build_phase(ID["resources"], "PBXResourcesBuildPhase", "Resources"))
     w(build_phase(ID["shareResources"], "PBXResourcesBuildPhase", "Resources"))
+    w(build_phase(ID["ytResources"], "PBXResourcesBuildPhase", "Resources"))
     w("/* End PBXResourcesBuildPhase section */\n\n")
 
     w("/* Begin PBXSourcesBuildPhase section */\n")
     w(build_phase(ID["sources"], "PBXSourcesBuildPhase", "Sources"))
     w(build_phase(ID["shareSources"], "PBXSourcesBuildPhase", "Sources"))
+    w(build_phase(ID["ytSources"], "PBXSourcesBuildPhase", "Sources"))
     w("/* End PBXSourcesBuildPhase section */\n\n")
 
     w("/* Begin PBXTargetDependency section */\n")
@@ -457,6 +563,16 @@ def main():
       f"\t\t\ttarget = {ID['shareTarget']} /* {SHARE} */;\n"
       f"\t\t\ttargetProxy = {ID['shareProxy']} /* PBXContainerItemProxy */;\n"
       f"\t\t}};\n")
+    for dependency, proxy, platform_filter in [
+        (ID["ytAppDependency"], ID["ytAppProxy"], "\t\t\tplatformFilter = ios;\n"),
+        (ID["ytShareDependency"], ID["ytShareProxy"], ""),
+    ]:
+        w(f"\t\t{dependency} /* PBXTargetDependency */ = {{\n"
+          f"\t\t\tisa = PBXTargetDependency;\n"
+          f"{platform_filter}"
+          f"\t\t\ttarget = {ID['ytTarget']} /* {YT} */;\n"
+          f"\t\t\ttargetProxy = {proxy} /* PBXContainerItemProxy */;\n"
+          f"\t\t}};\n")
     w("/* End PBXTargetDependency section */\n\n")
 
     w("/* Begin XCBuildConfiguration section */\n")
@@ -469,6 +585,9 @@ def main():
     w(build_config(ID["projectTestFlight"], "TestFlight", project_release))
     w(build_config(ID["appTestFlight"], "TestFlight", app_testflight))
     w(build_config(ID["shareTestFlight"], "TestFlight", share_testflight))
+    w(build_config(ID["ytDebug"], "Debug", yt_debug))
+    w(build_config(ID["ytRelease"], "Release", yt_release))
+    w(build_config(ID["ytTestFlight"], "TestFlight", yt_testflight))
     w("/* End XCBuildConfiguration section */\n\n")
 
     w("/* Begin XCConfigurationList section */\n")
@@ -479,6 +598,8 @@ def main():
          ID["appDebug"], ID["appRelease"], ID["appTestFlight"]),
         (ID["shareConfigs"], f'PBXNativeTarget "{SHARE}"',
          ID["shareDebug"], ID["shareRelease"], ID["shareTestFlight"]),
+        (ID["ytConfigs"], f'PBXNativeTarget "{YT}"',
+         ID["ytDebug"], ID["ytRelease"], ID["ytTestFlight"]),
     ]:
         w(f"\t\t{key} /* Build configuration list for {name} */ = {{\n"
           f"\t\t\tisa = XCConfigurationList;\n"

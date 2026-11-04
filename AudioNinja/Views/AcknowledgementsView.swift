@@ -56,12 +56,12 @@ struct AcknowledgementsView: View {
                     .textSelection(.enabled)
 
                 #if YOUTUBE_SHARE
-                // Only builds that carry the share extension carry YouTubeKit, and MIT asks for
+                // Only builds with the YouTube import carry YouTubeKit, and MIT asks for
                 // its notice in every copy.
                 Divider()
                 Text("YouTubeKit")
                     .font(.title2.bold())
-                Text("Share ▸ Audio Ninja uses YouTubeKit 0.4.10 to find a video's audio.")
+                Text("Import from YouTube and Share ▸ Audio Ninja use YouTubeKit 0.4.10 to find a video's audio.")
                 Link("github.com/alexeichhorn/YouTubeKit", destination: URL(string: "https://github.com/alexeichhorn/YouTubeKit")!)
                 Text(Self.youTubeKitLicence)
                     .font(.system(.caption, design: .monospaced))

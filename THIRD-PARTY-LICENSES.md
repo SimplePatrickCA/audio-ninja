@@ -44,12 +44,13 @@ There is no patent issue: the MP3 patents expired by 2017.
 
 ## YouTubeKit 0.4.10 (Debug and TestFlight iOS builds only)
 
-The iOS share extension, `AudioNinjaShare`, uses
-[YouTubeKit](https://github.com/alexeichhorn/YouTubeKit) to find a YouTube video's audio stream.
+`AudioNinjaYouTube.framework`, used by the iOS share extension and the app's Import from
+YouTube, uses [YouTubeKit](https://github.com/alexeichhorn/YouTubeKit) to find a YouTube video's
+audio stream.
 It is pinned to exactly **0.4.10** in `scripts/generate-xcodeproj.py` and the project's
 `Package.resolved`. The licence is MIT.
 
-Release builds leave the extension out of the app, so neither an App Store build nor the GitHub
+Release builds leave the framework and the extension out of the app, so neither an App Store build nor the GitHub
 release contains YouTubeKit. Builds of the TestFlight configuration do, and reach testers, so
 they credit it with its MIT notice under Acknowledgements in the app, compiled in only where
 `YOUTUBE_SHARE` is defined.

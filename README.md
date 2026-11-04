@@ -33,6 +33,7 @@ never adjacent is audible as a click.
 ```
 AudioNinja/                  SwiftUI views and the app scene
 AudioNinjaShare/             iOS share extension (YouTube import; Debug and TestFlight only)
+AudioNinjaYouTube/           iOS framework: YouTubeKit and the link parsing both of those share
 Packages/AudioNinjaKit/      all the logic — audio, editing, the document model
 scripts/                     project and app-icon generation, App Store upload
 Support/                     Info.plist, entitlements and the icon master
@@ -65,31 +66,40 @@ run it after replacing that file.
 
 Neither feature below is in Release builds, which include App Store submissions and the GitHub
 release: App Store Review Guideline 5.2.3 rejects apps that download media from YouTube. The Mac
-command is in Debug builds only. The iPhone share is in Debug builds and in the **TestFlight**
-configuration, which is Release plus the share, for internal TestFlight testers. Never submit a
+command is in Debug builds only. The iPhone import is in Debug builds and in the **TestFlight**
+configuration, which is Release plus the import, for internal TestFlight testers. Never submit a
 TestFlight-configuration build for review or offer it to external testers, whose beta review
 applies the same guidelines. Only download what you have the rights to: YouTube's terms of
 service otherwise forbid it.
 
-### iPhone and iPad: Share ▸ Audio Ninja
+### iPhone and iPad: Import from YouTube, or Share ▸ Audio Ninja
 
-In a Debug build run from Xcode, or a TestFlight-configuration build, sharing a video from the YouTube app (or a YouTube page in
-Safari) offers **Audio Ninja**. The share extension (`AudioNinjaShare/`) finds the video's M4A
-audio stream on the device with [YouTubeKit](https://github.com/alexeichhorn/YouTubeKit), local
-extraction only, so no third-party server sees the video. It then opens the app with an
-`audioninja://youtube-audio` link. The app (`AudioNinja/Views/YouTubeShareReceiver.swift`)
-downloads the stream into **On My iPhone ▸ Audio Ninja ▸ YouTube** and opens it, ready to cut
-and Export As. It never overwrites an earlier download, which may hold edits.
+In a Debug build run from Xcode, or a TestFlight-configuration build, there are two ways in:
+
+- **Import from YouTube** on the launch screen (`AudioNinja/Views/YouTubeImportSheet.swift`):
+  paste a video's link, or text containing one, and tap Import.
+- **Share ▸ Audio Ninja** from the YouTube app, or a YouTube page in Safari. The share extension
+  (`AudioNinjaShare/`) finds the stream and opens the app with an `audioninja://youtube-audio`
+  link.
+
+Either way, the video's M4A audio stream is found on the device with
+[YouTubeKit](https://github.com/alexeichhorn/YouTubeKit) (local extraction only, so no
+third-party server sees the video), in `AudioNinjaYouTube.framework`, which both use. The app
+(`AudioNinja/Views/YouTubeShareReceiver.swift`) downloads the stream into **On My iPhone ▸ Audio
+Ninja ▸ YouTube** and opens it, ready to cut and Export as MP3, WAV and the rest. It never
+overwrites an earlier download, which may hold edits.
 
 How Release leaves it out, all in `scripts/generate-xcodeproj.py`:
 
-- The extension target still builds, but Release excludes it from the embed phase and builds
-  it unsigned.
+- The extension and framework targets still build, but Release excludes them from the app's
+  link and embed phases and builds them unsigned. YouTubeKit is linked into the framework, not
+  the app, because a package product linked into the app cannot be excluded this way: Xcode
+  copies its resource bundle regardless.
 - `YOUTUBE_SHARE`, defined for iOS in Debug and TestFlight only (`APP_YOUTUBE`), compiles the
-  app's receiver and its YouTubeKit credit, and declares the `audioninja` URL scheme through
-  the preprocessed Info.plist.
+  app's import button, receiver and YouTubeKit credit, and declares the `audioninja` URL scheme
+  through the preprocessed Info.plist.
 
-`CONFIGURATION=TestFlight scripts/upload-app-store.sh` uploads a build with the share; see
+`CONFIGURATION=TestFlight scripts/upload-app-store.sh` uploads a build with the import; see
 [RELEASING.md](RELEASING.md).
 
 It is fragile by nature: YouTubeKit follows YouTube's undocumented internals and is pinned to

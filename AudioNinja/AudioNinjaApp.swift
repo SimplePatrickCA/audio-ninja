@@ -22,6 +22,13 @@ struct AudioNinjaApp: App {
         .windowResizability(.contentMinSize)
         #endif
 
+        #if YOUTUBE_SHARE
+        // The launch screen as SwiftUI draws it by default, plus Import from YouTube.
+        DocumentGroupLaunchScene {
+            YouTubeImportButton()
+        }
+        #endif
+
         #if os(macOS)
         Window("Acknowledgements", id: AcknowledgementsView.windowID) {
             AcknowledgementsView()

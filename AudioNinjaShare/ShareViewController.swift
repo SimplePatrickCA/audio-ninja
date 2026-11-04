@@ -1,7 +1,7 @@
+import AudioNinjaYouTube
 import SwiftUI
 import UIKit
 import UniformTypeIdentifiers
-import YouTubeKit
 
 // Share ▸ Audio Ninja, from the YouTube app or anywhere else that shares a YouTube link.
 //
@@ -40,7 +40,7 @@ final class ShareViewController: UIViewController {
                 throw ShareFailure("That isn't a link to a YouTube video.")
             }
             model.status = "Finding the audio…"
-            let (stream, title) = try await Self.audioStream(videoID: videoID)
+            let (stream, title) = try await YouTubeAudio.stream(videoID: videoID)
             let request = YouTubeLink.appURL(stream: stream, name: YouTubeLink.fileName(title: title, videoID: videoID))
 
             model.status = "Opening Audio Ninja…"
@@ -53,23 +53,9 @@ final class ShareViewController: UIViewController {
         } catch {
             model.status = nil
             model.failure = (error as? ShareFailure)?.message
+                ?? (error as? YouTubeAudio.Failure)?.message
                 ?? "Couldn't get the audio: \(error.localizedDescription)"
         }
-    }
-
-    /// The best M4A audio stream and the title. `.local` only: extraction runs on the device, and
-    /// the video ID never goes to YouTubeKit's optional remote server.
-    nonisolated private static func audioStream(videoID: String) async throws -> (URL, String) {
-        let video = YouTube(videoID: videoID, methods: [.local])
-        let stream = try await video.streams
-            .filterAudioOnly()
-            .filter { $0.fileExtension == .m4a }
-            .highestAudioBitrateStream()
-        guard let stream else {
-            throw ShareFailure("YouTube offered no M4A audio for this video.")
-        }
-        let title = (try? await video.metadata?.title) ?? videoID
-        return (stream.url, title)
     }
 
     /// The first web link among the shared items, whether shared as a URL or inside text (the

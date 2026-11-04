@@ -105,9 +105,11 @@ Connect record covering both iOS and macOS.
    | 6 | iOS, macOS | Time labels on the cursor and selection; the original shown above the waveform after a cut |
    | 7 | iOS, macOS | Show Separate Channels responds to the first tap on iOS (the bar's interactive glass took it) |
    | 8 | iOS, macOS | Version 1.1.0. TestFlight configuration: the iOS build has Share ▸ Audio Ninja from YouTube. **Internal testers only; not for review** |
-5. **Builds with the YouTube share** come from the TestFlight configuration:
-   `CONFIGURATION=TestFlight scripts/upload-app-store.sh`. It is Release plus the iOS share
-   extension (the Mac build is the same as Release). Such a build may go to internal testers
+   | 9 | iOS, macOS | TestFlight configuration: Import from YouTube on the iOS launch screen (paste a link). **Internal testers only; not for review** |
+5. **Builds with the YouTube import** come from the TestFlight configuration:
+   `CONFIGURATION=TestFlight scripts/upload-app-store.sh`. It is Release plus the iOS
+   YouTube import: Import from YouTube and the share extension (the Mac build is the same as
+   Release). Such a build may go to internal testers
    only: App Store Review Guideline 5.2.3 rejects apps that download from YouTube, and beta
    review for external testers applies it. Before submitting to the App Store, upload a new
    build number from plain Release and submit that one.

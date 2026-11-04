@@ -1,15 +1,18 @@
 #if YOUTUBE_SHARE
+import AudioNinjaYouTube
 import SwiftUI
 import UIKit
 
-// The app's half of Share ▸ Audio Ninja from the YouTube app. iOS builds of the Debug and
-// TestFlight configurations only (YOUTUBE_SHARE, see APP_YOUTUBE in scripts/generate-xcodeproj.py):
-// App Store Review Guideline 5.2.3 rejects apps that download media from YouTube, so Release has
-// neither this nor the share extension (AudioNinjaShare/), nor the audioninja:// scheme.
+// The app's half of Share ▸ Audio Ninja from the YouTube app, and Import from YouTube on the launch
+// screen (YouTubeImportSheet.swift). iOS builds of the Debug and TestFlight configurations only
+// (YOUTUBE_SHARE, see APP_YOUTUBE in scripts/generate-xcodeproj.py): App Store Review Guideline
+// 5.2.3 rejects apps that download media from YouTube, so Release has none of this, nor the share
+// extension (AudioNinjaShare/), the audioninja:// scheme or YouTubeKit.
 //
 // The extension resolves the video's audio stream and opens
 //     audioninja://youtube-audio?stream=<stream URL>&name=<file name>
-// This downloads the stream into Documents/YouTube and opens it as a document.
+// Import from YouTube resolves the stream in the app instead. Either way, this downloads the
+// stream into Documents/YouTube and opens it as a document.
 
 /// Installs ShareReceiverSceneDelegate, the one place a URL arrives whether or not a document is
 /// open. `.onOpenURL` only fires inside a view, and while the document browser shows there is none.
@@ -54,11 +57,38 @@ final class SharedAudioImport {
             url.scheme == "audioninja", url.host() == "youtube-audio",
             let items = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems,
             let stream = items.first(where: { $0.name == "stream" })?.value.flatMap(URL.init(string:)),
-            let name = items.first(where: { $0.name == "name" })?.value,
-            !busy
+            let name = items.first(where: { $0.name == "name" })?.value
         else { return }
 
+        run(in: scene, failureTitle: "Couldn't download the audio") { _ in (stream, name) }
+    }
+
+    /// Finds, downloads and opens the audio of the YouTube video `text` links to. `text` may be a
+    /// bare link or text containing one, as the YouTube app's Copy Link and share text are.
+    func importVideo(linkedFrom text: String, in scene: UIWindowScene) {
+        run(in: scene, failureTitle: "Couldn't import the video") { progress in
+            let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard let link = YouTubeLink.firstWebURL(in: trimmed) ?? URL(string: "https://\(trimmed)") else {
+                throw DownloadFailure(message: "Paste a YouTube video's link.")
+            }
+            guard let videoID = YouTubeLink.videoID(in: link) else {
+                throw DownloadFailure(message: "That isn't a link to a YouTube video.")
+            }
+            progress.status = "Finding the audio…"
+            let (stream, title) = try await YouTubeAudio.stream(videoID: videoID)
+            return (stream, YouTubeLink.fileName(title: title, videoID: videoID))
+        }
+    }
+
+    /// Shows progress while `resolve` finds the stream, then downloads it and opens the file.
+    private func run(
+        in scene: UIWindowScene,
+        failureTitle: String,
+        resolve: @escaping (ImportProgress) async throws -> (stream: URL, name: String)
+    ) {
+        guard !busy else { return }
         busy = true
+        progress.status = "Downloading…"
         progress.fraction = nil
         showHUD(in: scene)
         Task {
@@ -67,6 +97,8 @@ final class SharedAudioImport {
                 hideHUD()
             }
             do {
+                let (stream, name) = try await resolve(progress)
+                progress.status = "Downloading…"
                 let file = try await Self.download(stream, named: name) { [progress] fraction in
                     Task { @MainActor in progress.fraction = fraction }
                 }
@@ -74,7 +106,7 @@ final class SharedAudioImport {
                 try open(file, in: scene)
             } catch {
                 hideHUD()
-                presentAlert("Couldn't download the audio", message: error.localizedDescription, in: scene)
+                presentAlert(failureTitle, message: error.localizedDescription, in: scene)
             }
         }
     }
@@ -102,7 +134,7 @@ final class SharedAudioImport {
             let (data, response) = try await URLSession.shared.data(for: request)
             guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
                 let code = (response as? HTTPURLResponse)?.statusCode ?? 0
-                throw DownloadFailure(message: "YouTube answered HTTP \(code). Share the video again.")
+                throw DownloadFailure(message: "YouTube answered HTTP \(code). Try the video again.")
             }
             guard !data.isEmpty else { break }
             try handle.write(contentsOf: data)
@@ -201,6 +233,7 @@ private struct DownloadFailure: LocalizedError {
 
 @Observable
 private final class ImportProgress {
+    var status = "Downloading…"
     var fraction: Double?
 }
 
@@ -215,7 +248,7 @@ private struct ImportHUD: View {
                 Text("Downloading \(fraction, format: .percent.precision(.fractionLength(0)))")
             } else {
                 ProgressView()
-                Text("Downloading…")
+                Text(progress.status)
             }
         }
         .font(.callout)

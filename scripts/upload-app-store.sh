@@ -9,7 +9,7 @@
 # Usage: scripts/upload-app-store.sh [iOS] [macOS]     (both when no platform is given)
 #
 # CONFIGURATION=TestFlight archives the TestFlight configuration instead of Release: Release plus
-# the iOS YouTube share extension. Its builds are for internal testers only; never submit one for
+# the iOS YouTube import (Import from YouTube and the share extension). Its builds are for internal testers only; never submit one for
 # App Store review or give it to external testers (App Store Review Guideline 5.2.3).
 set -euo pipefail
 

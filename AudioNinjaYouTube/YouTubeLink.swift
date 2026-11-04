@@ -1,9 +1,11 @@
+// AudioNinjaYouTube.framework, used by the share extension and the app's Import from YouTube.
+// Debug and TestFlight iOS builds only; see APP_YOUTUBE in scripts/generate-xcodeproj.py.
 import Foundation
 
-enum YouTubeLink {
+public enum YouTubeLink {
     /// The video ID in a YouTube link: youtube.com/watch?v=…, youtu.be/…, /shorts/…, /live/…,
     /// /embed/…, on any of YouTube's hosts (www., m., music.).
-    static func videoID(in url: URL) -> String? {
+    public static func videoID(in url: URL) -> String? {
         guard let host = url.host()?.lowercased() else { return nil }
         let isYouTube = host == "youtu.be" || host == "youtube.com" || host.hasSuffix(".youtube.com")
         guard isYouTube else { return nil }
@@ -27,7 +29,7 @@ enum YouTubeLink {
         return nil
     }
 
-    static func firstWebURL(in text: String) -> URL? {
+    public static func firstWebURL(in text: String) -> URL? {
         let detector = try? NSDataDetector(types: NSTextCheckingResult.CheckingType.link.rawValue)
         let range = NSRange(text.startIndex..., in: text)
         return detector?.matches(in: text, range: range)
@@ -36,7 +38,7 @@ enum YouTubeLink {
     }
 
     /// "<title> [<id>].m4a", the same shape the Mac helper (scripts/youtube-audio.sh) uses.
-    static func fileName(title: String, videoID: String) -> String {
+    public static func fileName(title: String, videoID: String) -> String {
         let unsafe = CharacterSet(charactersIn: "/\\:?%*|\"<>").union(.controlCharacters).union(.newlines)
         let cleaned = title.unicodeScalars.map { unsafe.contains($0) ? "_" : String($0) }.joined()
             .trimmingCharacters(in: .whitespaces)
@@ -45,7 +47,7 @@ enum YouTubeLink {
 
     /// audioninja://youtube-audio?stream=<stream URL>&name=<file name>. The app's side is
     /// AudioNinja/Views/YouTubeShareReceiver.swift.
-    static func appURL(stream: URL, name: String) -> URL {
+    public static func appURL(stream: URL, name: String) -> URL {
         var components = URLComponents()
         components.scheme = "audioninja"
         components.host = "youtube-audio"
