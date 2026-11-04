@@ -104,7 +104,14 @@ Connect record covering both iOS and macOS.
    | 5 | iOS, macOS | MP3 editing and export, through LAME (LAME-xcframework 3.100.3) |
    | 6 | iOS, macOS | Time labels on the cursor and selection; the original shown above the waveform after a cut |
    | 7 | iOS, macOS | Show Separate Channels responds to the first tap on iOS (the bar's interactive glass took it) |
-5. Upload with the **release** Xcode 27, not a beta. App Store Connect refuses builds from
+   | 8 | iOS, macOS | Version 1.1.0. TestFlight configuration: the iOS build has Share ▸ Audio Ninja from YouTube. **Internal testers only; not for review** |
+5. **Builds with the YouTube share** come from the TestFlight configuration:
+   `CONFIGURATION=TestFlight scripts/upload-app-store.sh`. It is Release plus the iOS share
+   extension (the Mac build is the same as Release). Such a build may go to internal testers
+   only: App Store Review Guideline 5.2.3 rejects apps that download from YouTube, and beta
+   review for external testers applies it. Before submitting to the App Store, upload a new
+   build number from plain Release and submit that one.
+6. Upload with the **release** Xcode 27, not a beta. App Store Connect refuses builds from
    beta toolchains.
 
 Automating the upload in CI would need the same certificate secrets as the Developer ID

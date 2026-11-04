@@ -1,10 +1,11 @@
-#if DEBUG && os(iOS)
+#if YOUTUBE_SHARE
 import SwiftUI
 import UIKit
 
-// The app's half of Share ▸ Audio Ninja from the YouTube app. Debug iOS builds only: App Store
-// Review Guideline 5.2.3 rejects apps that download media from YouTube, so Release has neither
-// this nor the share extension (AudioNinjaShare/), nor the audioninja:// scheme.
+// The app's half of Share ▸ Audio Ninja from the YouTube app. iOS builds of the Debug and
+// TestFlight configurations only (YOUTUBE_SHARE, see APP_YOUTUBE in scripts/generate-xcodeproj.py):
+// App Store Review Guideline 5.2.3 rejects apps that download media from YouTube, so Release has
+// neither this nor the share extension (AudioNinjaShare/), nor the audioninja:// scheme.
 //
 // The extension resolves the video's audio stream and opens
 //     audioninja://youtube-audio?stream=<stream URL>&name=<file name>

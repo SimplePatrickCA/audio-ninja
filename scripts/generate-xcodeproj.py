@@ -7,7 +7,7 @@ check only catches real differences. A setting changed in Xcode's editor must be
 
 Hand-maintaining a pbxproj is unpleasant, and neither xcodegen nor tuist is installed. This
 generator keeps the file reproducible and reviewable: the project is small (one multiplatform app
-target, a Debug-only iOS share extension, a local package and one pinned remote package), and
+target, an iOS share extension built into Debug and TestFlight only, a local package and one pinned remote package), and
 because each target's sources live in a PBXFileSystemSynchronizedRootGroup, adding Swift files
 never requires regenerating it.
 """
@@ -63,6 +63,10 @@ ID = {
     "ytkPkgRef":      "A0000000000000000000024",
     "ytkProduct":     "A0000000000000000000025",
     "ytkBuildFile":   "A0000000000000000000026",
+    # The TestFlight configuration (see APP_YOUTUBE).
+    "projectTestFlight": "A0000000000000000000027",
+    "appTestFlight":     "A0000000000000000000028",
+    "shareTestFlight":   "A0000000000000000000029",
 }
 
 SHARE = f"{APP}Share"
@@ -71,8 +75,8 @@ SHARE = f"{APP}Share"
 YOUTUBEKIT_URL = "https://github.com/alexeichhorn/YouTubeKit"
 YOUTUBEKIT_VERSION = "0.4.10"
 
-MARKETING_VERSION = "1.0"
-BUILD_NUMBER = "7"
+MARKETING_VERSION = "1.1.0"
+BUILD_NUMBER = "8"
 
 SHARED_SETTINGS = {
     "ALWAYS_SEARCH_USER_PATHS": "NO",
@@ -152,7 +156,7 @@ APP_SETTINGS = {
     "MARKETING_VERSION": MARKETING_VERSION,
     "PRODUCT_BUNDLE_IDENTIFIER": BUNDLE_ID,
     # Support/AudioNinja-Info.plist goes through the C preprocessor so that Debug iOS builds alone
-    # declare the audioninja:// scheme the share extension opens the app with (APP_DEBUG_ONLY).
+    # declare the audioninja:// scheme the share extension opens the app with (APP_YOUTUBE).
     "INFOPLIST_PREPROCESS": "YES",
     "PRODUCT_NAME": '"$(TARGET_NAME)"',
     "SWIFT_EMIT_LOC_STRINGS": "YES",
@@ -162,11 +166,17 @@ APP_SETTINGS = {
     "SWIFT_DEFAULT_ACTOR_ISOLATION": "MainActor",
 }
 
-# The YouTube share feature exists in Debug iOS builds only. App Store Review Guideline 5.2.3
-# rejects apps that download media from YouTube, so no Release build may carry any of it.
-APP_DEBUG_ONLY = {
+# The YouTube share feature exists in iOS builds of the Debug and TestFlight configurations only.
+# App Store Review Guideline 5.2.3 rejects apps that download media from YouTube, so Release, the
+# configuration for App Store submissions, carries none of it. TestFlight is Release plus the
+# feature, for internal testers: its builds must never be submitted for review or given to
+# external testers (beta review applies the same guidelines).
+APP_YOUTUBE = {
     '"INFOPLIST_PREPROCESSOR_DEFINITIONS[sdk=iphoneos*]"': "\"YOUTUBE_SHARE=1\"",
     '"INFOPLIST_PREPROCESSOR_DEFINITIONS[sdk=iphonesimulator*]"': "\"YOUTUBE_SHARE=1\"",
+    # Compiles AudioNinja/Views/YouTubeShareReceiver.swift; $(inherited) keeps Debug's DEBUG.
+    '"SWIFT_ACTIVE_COMPILATION_CONDITIONS[sdk=iphoneos*]"': '"$(inherited) YOUTUBE_SHARE"',
+    '"SWIFT_ACTIVE_COMPILATION_CONDITIONS[sdk=iphonesimulator*]"': '"$(inherited) YOUTUBE_SHARE"',
 }
 APP_RELEASE_ONLY = {
     # The extension target still builds (a target dependency cannot vary by configuration), but
@@ -174,7 +184,7 @@ APP_RELEASE_ONLY = {
     "EXCLUDED_SOURCE_FILE_NAMES": f"{SHARE}.appex",
 }
 
-# The share extension: "Share > Audio Ninja" in the YouTube app. It resolves the video's audio
+# The share extension: "Share > Audio Ninja" in the YouTube app. Embedded in Debug and TestFlight. It resolves the video's audio
 # stream with YouTubeKit and hands it to the app, which downloads and opens it. iOS only.
 SHARE_SETTINGS = {
     "CODE_SIGN_STYLE": "Automatic",
@@ -265,9 +275,11 @@ def build_phase(phase_id, isa, name, files=()):
 def main():
     project_debug = {**SHARED_SETTINGS, **DEBUG_ONLY}
     project_release = {**SHARED_SETTINGS, **RELEASE_ONLY}
-    app_debug = {**APP_SETTINGS, **APP_DEBUG_ONLY}
+    app_debug = {**APP_SETTINGS, **APP_YOUTUBE}
     app_release = {**APP_SETTINGS, **APP_RELEASE_ONLY}
+    app_testflight = {**APP_SETTINGS, **APP_YOUTUBE}
     share_debug = dict(SHARE_SETTINGS)
+    share_testflight = dict(SHARE_SETTINGS)
     # Release builds the extension only because the dependency cannot vary by configuration, and
     # never embeds it; unsigned, it needs no App ID or profile when archiving for the App Store.
     share_release = {**SHARE_SETTINGS, "CODE_SIGNING_ALLOWED": "NO"}
@@ -454,18 +466,25 @@ def main():
     w(build_config(ID["appRelease"], "Release", app_release))
     w(build_config(ID["shareDebug"], "Debug", share_debug))
     w(build_config(ID["shareRelease"], "Release", share_release))
+    w(build_config(ID["projectTestFlight"], "TestFlight", project_release))
+    w(build_config(ID["appTestFlight"], "TestFlight", app_testflight))
+    w(build_config(ID["shareTestFlight"], "TestFlight", share_testflight))
     w("/* End XCBuildConfiguration section */\n\n")
 
     w("/* Begin XCConfigurationList section */\n")
-    for key, name, debug, release in [
-        (ID["projectConfigs"], f'PBXProject "{APP}"', ID["projectDebug"], ID["projectRelease"]),
-        (ID["appConfigs"], f'PBXNativeTarget "{APP}"', ID["appDebug"], ID["appRelease"]),
-        (ID["shareConfigs"], f'PBXNativeTarget "{SHARE}"', ID["shareDebug"], ID["shareRelease"]),
+    for key, name, debug, release, testflight in [
+        (ID["projectConfigs"], f'PBXProject "{APP}"',
+         ID["projectDebug"], ID["projectRelease"], ID["projectTestFlight"]),
+        (ID["appConfigs"], f'PBXNativeTarget "{APP}"',
+         ID["appDebug"], ID["appRelease"], ID["appTestFlight"]),
+        (ID["shareConfigs"], f'PBXNativeTarget "{SHARE}"',
+         ID["shareDebug"], ID["shareRelease"], ID["shareTestFlight"]),
     ]:
         w(f"\t\t{key} /* Build configuration list for {name} */ = {{\n"
           f"\t\t\tisa = XCConfigurationList;\n"
           f"\t\t\tbuildConfigurations = (\n"
-          f"\t\t\t\t{debug} /* Debug */,\n\t\t\t\t{release} /* Release */,\n\t\t\t);\n"
+          f"\t\t\t\t{debug} /* Debug */,\n\t\t\t\t{release} /* Release */,\n"
+          f"\t\t\t\t{testflight} /* TestFlight */,\n\t\t\t);\n"
           f"\t\t\tdefaultConfigurationIsVisible = 0;\n"
           f"\t\t\tdefaultConfigurationName = Release;\n"
           f"\t\t}};\n")

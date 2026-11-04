@@ -3,7 +3,7 @@ import SwiftUI
 
 @main
 struct AudioNinjaApp: App {
-    #if DEBUG && os(iOS)
+    #if YOUTUBE_SHARE
     // Receives Share ▸ Audio Ninja from the YouTube app; see YouTubeShareReceiver.swift.
     @UIApplicationDelegateAdaptor(ShareReceiverAppDelegate.self) private var shareReceiver
     #endif

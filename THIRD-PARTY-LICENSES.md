@@ -42,14 +42,15 @@ MP3 encoder and open MP3 read-only, which is what build 4 did.
 
 There is no patent issue: the MP3 patents expired by 2017.
 
-## YouTubeKit 0.4.10 (Debug iOS builds only, not distributed)
+## YouTubeKit 0.4.10 (Debug and TestFlight iOS builds only)
 
-The Debug-only iOS share extension, `AudioNinjaShare`, uses
+The iOS share extension, `AudioNinjaShare`, uses
 [YouTubeKit](https://github.com/alexeichhorn/YouTubeKit) to find a YouTube video's audio stream.
 It is pinned to exactly **0.4.10** in `scripts/generate-xcodeproj.py` and the project's
 `Package.resolved`. The licence is MIT.
 
-It never ships. Release builds leave the extension out of the app, so neither the App Store
-build nor the GitHub release contains YouTubeKit, and no notice is owed to people who install
-them. A Debug build given to someone else would carry it, along with its MIT notice obligation.
+Release builds leave the extension out of the app, so neither an App Store build nor the GitHub
+release contains YouTubeKit. Builds of the TestFlight configuration do, and reach testers, so
+they credit it with its MIT notice under Acknowledgements in the app, compiled in only where
+`YOUTUBE_SHARE` is defined.
 

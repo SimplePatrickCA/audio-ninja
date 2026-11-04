@@ -5,9 +5,9 @@ import YouTubeKit
 
 // Share ▸ Audio Ninja, from the YouTube app or anywhere else that shares a YouTube link.
 //
-// Debug iOS builds only: Release leaves this extension out of the app (see APP_RELEASE_ONLY in
-// scripts/generate-xcodeproj.py), because App Store Review Guideline 5.2.3 rejects apps that
-// download media from YouTube.
+// Debug and TestFlight builds only: Release leaves this extension out of the app (see
+// APP_RELEASE_ONLY in scripts/generate-xcodeproj.py), because App Store Review Guideline 5.2.3
+// rejects apps that download media from YouTube.
 //
 // The extension only finds the audio. YouTubeKit resolves the video's best M4A audio stream on
 // the device (no third-party server), and the extension opens the app with that stream's address;

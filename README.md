@@ -32,7 +32,7 @@ never adjacent is audible as a click.
 
 ```
 AudioNinja/                  SwiftUI views and the app scene
-AudioNinjaShare/             Debug-only iOS share extension (YouTube import)
+AudioNinjaShare/             iOS share extension (YouTube import; Debug and TestFlight only)
 Packages/AudioNinjaKit/      all the logic — audio, editing, the document model
 scripts/                     project and app-icon generation, App Store upload
 Support/                     Info.plist, entitlements and the icon master
@@ -63,14 +63,17 @@ run it after replacing that file.
 
 ## Developer builds: YouTube import
 
-Both features below exist only in Debug builds. Release builds, which include the App Store
-archive and the GitHub release, contain none of them: App Store Review Guideline 5.2.3 rejects
-apps that download media from YouTube. Only download what you have the rights to: YouTube's
-terms of service otherwise forbid it.
+Neither feature below is in Release builds, which include App Store submissions and the GitHub
+release: App Store Review Guideline 5.2.3 rejects apps that download media from YouTube. The Mac
+command is in Debug builds only. The iPhone share is in Debug builds and in the **TestFlight**
+configuration, which is Release plus the share, for internal TestFlight testers. Never submit a
+TestFlight-configuration build for review or offer it to external testers, whose beta review
+applies the same guidelines. Only download what you have the rights to: YouTube's terms of
+service otherwise forbid it.
 
 ### iPhone and iPad: Share ▸ Audio Ninja
 
-In a Debug build run from Xcode, sharing a video from the YouTube app (or a YouTube page in
+In a Debug build run from Xcode, or a TestFlight-configuration build, sharing a video from the YouTube app (or a YouTube page in
 Safari) offers **Audio Ninja**. The share extension (`AudioNinjaShare/`) finds the video's M4A
 audio stream on the device with [YouTubeKit](https://github.com/alexeichhorn/YouTubeKit), local
 extraction only, so no third-party server sees the video. It then opens the app with an
@@ -82,8 +85,12 @@ How Release leaves it out, all in `scripts/generate-xcodeproj.py`:
 
 - The extension target still builds, but Release excludes it from the embed phase and builds
   it unsigned.
-- The `audioninja` URL scheme is declared through the preprocessed Info.plist only when
-  `YOUTUBE_SHARE` is defined, which Debug iOS builds alone do.
+- `YOUTUBE_SHARE`, defined for iOS in Debug and TestFlight only (`APP_YOUTUBE`), compiles the
+  app's receiver and its YouTubeKit credit, and declares the `audioninja` URL scheme through
+  the preprocessed Info.plist.
+
+`CONFIGURATION=TestFlight scripts/upload-app-store.sh` uploads a build with the share; see
+[RELEASING.md](RELEASING.md).
 
 It is fragile by nature: YouTubeKit follows YouTube's undocumented internals and is pinned to
 an exact version. When extraction starts failing, update `YOUTUBEKIT_VERSION`, regenerate the
