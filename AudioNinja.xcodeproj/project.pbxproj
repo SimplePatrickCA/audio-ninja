@@ -8,18 +8,51 @@
 
 /* Begin PBXBuildFile section */
 		A0000000000000000000013 /* AudioNinjaKit in Frameworks */ = {isa = PBXBuildFile; productRef = A0000000000000000000012 /* AudioNinjaKit */; };
+		A0000000000000000000021 /* AudioNinjaShare.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = A0000000000000000000017 /* AudioNinjaShare.appex */; platformFilters = (ios, ); settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		A0000000000000000000026 /* YouTubeKit in Frameworks */ = {isa = PBXBuildFile; productRef = A0000000000000000000025 /* YouTubeKit */; };
 /* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		A0000000000000000000023 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = A00000000000000000000001 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = A0000000000000000000016;
+			remoteInfo = AudioNinjaShare;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		A0000000000000000000020 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				A0000000000000000000021 /* AudioNinjaShare.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		A00000000000000000000003 /* AudioNinja.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = AudioNinja.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		A0000000000000000000014 /* AudioNinja-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "AudioNinja-Info.plist"; sourceTree = "<group>"; };
 		A0000000000000000000015 /* AudioNinja.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = AudioNinja.entitlements; sourceTree = "<group>"; };
+		A0000000000000000000017 /* AudioNinjaShare.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = AudioNinjaShare.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		A000000000000000000001F /* AudioNinjaShare-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "AudioNinjaShare-Info.plist"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		A00000000000000000000004 /* AudioNinja */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = AudioNinja;
+			sourceTree = "<group>";
+		};
+		A0000000000000000000018 /* AudioNinjaShare */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = AudioNinjaShare;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -33,6 +66,14 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		A000000000000000000001A /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A0000000000000000000026 /* YouTubeKit in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -40,6 +81,7 @@
 			isa = PBXGroup;
 			children = (
 				A00000000000000000000004 /* AudioNinja */,
+				A0000000000000000000018 /* AudioNinjaShare */,
 				A00000000000000000000007 /* Support */,
 				A00000000000000000000006 /* Products */,
 			);
@@ -49,6 +91,7 @@
 			isa = PBXGroup;
 			children = (
 				A00000000000000000000003 /* AudioNinja.app */,
+				A0000000000000000000017 /* AudioNinjaShare.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -58,6 +101,7 @@
 			children = (
 				A0000000000000000000014 /* AudioNinja-Info.plist */,
 				A0000000000000000000015 /* AudioNinja.entitlements */,
+				A000000000000000000001F /* AudioNinjaShare-Info.plist */,
 			);
 			path = Support;
 			sourceTree = "<group>";
@@ -72,10 +116,12 @@
 				A00000000000000000000008 /* Sources */,
 				A00000000000000000000009 /* Frameworks */,
 				A000000000000000000000A /* Resources */,
+				A0000000000000000000020 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				A0000000000000000000022 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				A00000000000000000000004 /* AudioNinja */,
@@ -88,6 +134,29 @@
 			productReference = A00000000000000000000003 /* AudioNinja.app */;
 			productType = "com.apple.product-type.application";
 		};
+		A0000000000000000000016 /* AudioNinjaShare */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A000000000000000000001C /* Build configuration list for PBXNativeTarget "AudioNinjaShare" */;
+			buildPhases = (
+				A0000000000000000000019 /* Sources */,
+				A000000000000000000001A /* Frameworks */,
+				A000000000000000000001B /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				A0000000000000000000018 /* AudioNinjaShare */,
+			);
+			name = AudioNinjaShare;
+			packageProductDependencies = (
+				A0000000000000000000025 /* YouTubeKit */,
+			);
+			productName = AudioNinjaShare;
+			productReference = A0000000000000000000017 /* AudioNinjaShare.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -99,6 +168,9 @@
 				LastUpgradeCheck = 2700;
 				TargetAttributes = {
 					A00000000000000000000002 = {
+						CreatedOnToolsVersion = 27.0;
+					};
+					A0000000000000000000016 = {
 						CreatedOnToolsVersion = 27.0;
 					};
 				};
@@ -114,6 +186,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				A0000000000000000000011 /* XCLocalSwiftPackageReference "Packages/AudioNinjaKit" */,
+				A0000000000000000000024 /* XCRemoteSwiftPackageReference "YouTubeKit" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = A00000000000000000000006 /* Products */;
@@ -121,12 +194,20 @@
 			projectRoot = "";
 			targets = (
 				A00000000000000000000002 /* AudioNinja */,
+				A0000000000000000000016 /* AudioNinjaShare */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
 		A000000000000000000000A /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A000000000000000000001B /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -143,7 +224,23 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		A0000000000000000000019 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		A0000000000000000000022 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			platformFilter = ios;
+			target = A0000000000000000000016 /* AudioNinjaShare */;
+			targetProxy = A0000000000000000000023 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		A000000000000000000000D /* Debug */ = {
@@ -218,6 +315,9 @@
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				"INFOPLIST_KEY_UISupportsDocumentBrowser[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UISupportsDocumentBrowser[sdk=iphonesimulator*]" = YES;
+				INFOPLIST_PREPROCESS = YES;
+				"INFOPLIST_PREPROCESSOR_DEFINITIONS[sdk=iphoneos*]" = "YOUTUBE_SHARE=1";
+				"INFOPLIST_PREPROCESSOR_DEFINITIONS[sdk=iphonesimulator*]" = "YOUTUBE_SHARE=1";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -245,6 +345,7 @@
 				DEVELOPMENT_TEAM = XJ77XT4Z9Y;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
+				EXCLUDED_SOURCE_FILE_NAMES = AudioNinjaShare.appex;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "Support/AudioNinja-Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = "Audio Ninja";
@@ -261,6 +362,7 @@
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				"INFOPLIST_KEY_UISupportsDocumentBrowser[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UISupportsDocumentBrowser[sdk=iphonesimulator*]" = YES;
+				INFOPLIST_PREPROCESS = YES;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -272,6 +374,61 @@
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.simplepatrick.AudioNinja;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		A000000000000000000001D /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 7;
+				DEVELOPMENT_TEAM = XJ77XT4Z9Y;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Support/AudioNinjaShare-Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "Audio Ninja";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.simplepatrick.AudioNinja.Share;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		A000000000000000000001E /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGNING_ALLOWED = NO;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 7;
+				DEVELOPMENT_TEAM = XJ77XT4Z9Y;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Support/AudioNinjaShare-Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "Audio Ninja";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.simplepatrick.AudioNinja.Share;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -299,6 +456,15 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
+		A000000000000000000001C /* Build configuration list for PBXNativeTarget "AudioNinjaShare" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A000000000000000000001D /* Debug */,
+				A000000000000000000001E /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 /* End XCConfigurationList section */
 
 /* Begin XCLocalSwiftPackageReference section */
@@ -308,10 +474,26 @@
 		};
 /* End XCLocalSwiftPackageReference section */
 
+/* Begin XCRemoteSwiftPackageReference section */
+		A0000000000000000000024 /* XCRemoteSwiftPackageReference "YouTubeKit" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/alexeichhorn/YouTubeKit";
+			requirement = {
+				kind = exactVersion;
+				version = 0.4.10;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
 /* Begin XCSwiftPackageProductDependency section */
 		A0000000000000000000012 /* AudioNinjaKit */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = AudioNinjaKit;
+		};
+		A0000000000000000000025 /* YouTubeKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A0000000000000000000024 /* XCRemoteSwiftPackageReference "YouTubeKit" */;
+			productName = YouTubeKit;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

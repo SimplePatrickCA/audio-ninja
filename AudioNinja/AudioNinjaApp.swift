@@ -3,6 +3,11 @@ import SwiftUI
 
 @main
 struct AudioNinjaApp: App {
+    #if DEBUG && os(iOS)
+    // Receives Share ▸ Audio Ninja from the YouTube app; see YouTubeShareReceiver.swift.
+    @UIApplicationDelegateAdaptor(ShareReceiverAppDelegate.self) private var shareReceiver
+    #endif
+
     var body: some Scene {
         // allowCreating: false — an audio editor has nothing meaningful to make from nothing, and
         // every view would otherwise need an empty-document path.
