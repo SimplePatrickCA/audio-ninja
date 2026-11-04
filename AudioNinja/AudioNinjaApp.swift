@@ -24,5 +24,13 @@ struct AudioNinjaApp: App {
         .defaultSize(width: 560, height: 560)
         .windowResizability(.contentMinSize)
         #endif
+
+        #if DEBUG && os(macOS)
+        // Debug builds only; see YouTubeImport.swift for why.
+        Window("Open YouTube URL", id: YouTubeImportView.windowID) {
+            YouTubeImportView()
+        }
+        .windowResizability(.contentSize)
+        #endif
     }
 }
