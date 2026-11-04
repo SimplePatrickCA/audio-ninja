@@ -1,5 +1,5 @@
 {
-  "originHash" : "edcb9989d105e7f358432d099d77a0b3897805da0811fbb422e9d93d1e644de0",
+  "originHash" : "d571a22165ac021b9ef0aa993711dc08b7e34fb3bda7a6dd38bde9215d866b20",
   "pins" : [
     {
       "identity" : "lame-xcframework",
@@ -8,6 +8,15 @@
       "state" : {
         "revision" : "3f906714cf8a8cf2a82a8cf5bc760e639febf7b2",
         "version" : "3.100.3"
+      }
+    },
+    {
+      "identity" : "youtubekit",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/alexeichhorn/YouTubeKit",
+      "state" : {
+        "revision" : "89854c93207ad0d2b3d78d6f1aea24595ca66552",
+        "version" : "0.4.10"
       }
     }
   ],

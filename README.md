@@ -32,6 +32,8 @@ never adjacent is audible as a click.
 
 ```
 AudioNinja/                  SwiftUI views and the app scene
+AudioNinjaShare/             iOS share extension (YouTube import; Debug and TestFlight only)
+AudioNinjaYouTube/           iOS framework: YouTubeKit and the link parsing both of those share
 Packages/AudioNinjaKit/      all the logic — audio, editing, the document model
 scripts/                     project and app-icon generation, App Store upload
 Support/                     Info.plist, entitlements and the icon master
@@ -62,13 +64,58 @@ run it after replacing that file.
 
 ## Developer builds: YouTube import
 
+Neither feature below is in Release builds, which include App Store submissions and the GitHub
+release: App Store Review Guideline 5.2.3 rejects apps that download media from YouTube. The Mac
+command is in Debug builds only. The iPhone import is in Debug builds and in the **TestFlight**
+configuration, which is Release plus the import, for internal TestFlight testers. Never submit a
+TestFlight-configuration build for review or offer it to external testers, whose beta review
+applies the same guidelines. Only download what you have the rights to: YouTube's terms of
+service otherwise forbid it.
+
+### iPhone and iPad: Import from YouTube, or Share ▸ Audio Ninja
+
+In a Debug build run from Xcode, or a TestFlight-configuration build, there are two ways in:
+
+- **Import from YouTube** on the launch screen (`AudioNinja/Views/YouTubeImportSheet.swift`):
+  paste a video's link, or text containing one, and tap Import.
+- **Share ▸ Audio Ninja** from the YouTube app, or a YouTube page in Safari. The share extension
+  (`AudioNinjaShare/`) finds the stream and opens the app with an `audioninja://youtube-audio`
+  link.
+
+Either way, the video's M4A audio stream is found on the device with
+[YouTubeKit](https://github.com/alexeichhorn/YouTubeKit) (local extraction only, so no
+third-party server sees the video), in `AudioNinjaYouTube.framework`, which both use. The app
+(`AudioNinja/Views/YouTubeShareReceiver.swift`) downloads the stream into **On My iPhone ▸ Audio
+Ninja ▸ YouTube** and opens it, ready to cut and Export as MP3, WAV and the rest. It never
+overwrites an earlier download, which may hold edits.
+
+How Release leaves it out, all in `scripts/generate-xcodeproj.py`:
+
+- The extension and framework targets still build, but Release excludes them from the app's
+  link and embed phases and builds them unsigned. YouTubeKit is linked into the framework, not
+  the app, because a package product linked into the app cannot be excluded this way: Xcode
+  copies its resource bundle regardless.
+- `YOUTUBE_SHARE`, defined for iOS in Debug and TestFlight only (`APP_YOUTUBE`), compiles the
+  app's import button, receiver and YouTubeKit credit, and declares the `audioninja` URL scheme
+  through the preprocessed Info.plist.
+
+`CONFIGURATION=TestFlight scripts/upload-app-store.sh` uploads a build with the import; see
+[RELEASING.md](RELEASING.md).
+
+It is fragile by nature: YouTubeKit follows YouTube's undocumented internals and is pinned to
+an exact version. When extraction starts failing, update `YOUTUBEKIT_VERSION`, regenerate the
+project, and resolve packages.
+
+The first run on a device needs Xcode to register the extension's App ID
+(`com.simplepatrick.AudioNinja.Share`): automatic signing does this when you run the scheme.
+
+### Mac: File ▸ Open YouTube URL…
+
 Debug builds for macOS have **File ▸ Open YouTube URL…** (⇧⌘O). It downloads a video's audio
 and opens it as a document, ready to cut and Export As. The default is M4A, YouTube's AAC
 stream saved as is with no re-encode. MP3 and WAV are converted by ffmpeg.
 
-It is compiled only into Debug macOS builds (`#if DEBUG && os(macOS)`). Release builds, which
-include the App Store archive and the GitHub release, contain none of it, and neither does iOS.
-App Store Review Guideline 5.2.3 rejects apps that download media from YouTube.
+It is compiled only into Debug macOS builds (`#if DEBUG && os(macOS)`).
 
 One-time setup:
 
@@ -81,8 +128,7 @@ The app is sandboxed, and a sandboxed process can't run yt-dlp itself. So the do
 by `scripts/youtube-audio.sh`, which the app runs with `NSUserUnixTask` from
 `~/Library/Application Scripts/com.simplepatrick.AudioNinja/`, outside the sandbox. Downloads
 land in the app container's `Application Support/YouTube` folder; **Show Downloads** in the
-window reveals it. Only download what you have the rights to: YouTube's terms of service
-otherwise forbid it.
+window reveals it.
 
 ## Continuous integration
 

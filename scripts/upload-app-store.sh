@@ -7,6 +7,10 @@
 # before running this. Signing and upload use the Apple account signed in to Xcode.
 #
 # Usage: scripts/upload-app-store.sh [iOS] [macOS]     (both when no platform is given)
+#
+# CONFIGURATION=TestFlight archives the TestFlight configuration instead of Release: Release plus
+# the iOS YouTube import (Import from YouTube and the share extension). Its builds are for internal testers only; never submit one for
+# App Store review or give it to external testers (App Store Review Guideline 5.2.3).
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -14,13 +18,14 @@ cd "${REPO_ROOT}"
 
 BUILD_DIR="build/app-store"
 EXPORT_OPTIONS="Support/ExportOptions-AppStore.plist"
+CONFIGURATION="${CONFIGURATION:-Release}"
 
 platforms=("$@")
 [ ${#platforms[@]} -eq 0 ] && platforms=(iOS macOS)
 
-build_number=$(xcodebuild -project AudioNinja.xcodeproj -scheme AudioNinja -configuration Release \
+build_number=$(xcodebuild -project AudioNinja.xcodeproj -scheme AudioNinja -configuration "${CONFIGURATION}" \
     -showBuildSettings 2>/dev/null | awk '$1 == "CURRENT_PROJECT_VERSION" { print $3; exit }')
-echo "==> uploading build ${build_number} for: ${platforms[*]}"
+echo "==> uploading build ${build_number} (${CONFIGURATION}) for: ${platforms[*]}"
 
 # The logic tests are the cheapest thing that can stop a bad build reaching testers.
 swift test --package-path Packages/AudioNinjaKit
@@ -31,7 +36,7 @@ for platform in "${platforms[@]}"; do
 
     echo "==> archiving ${platform}"
     xcodebuild archive \
-        -project AudioNinja.xcodeproj -scheme AudioNinja -configuration Release \
+        -project AudioNinja.xcodeproj -scheme AudioNinja -configuration "${CONFIGURATION}" \
         -destination "generic/platform=${platform}" \
         -archivePath "${archive}" \
         -allowProvisioningUpdates
