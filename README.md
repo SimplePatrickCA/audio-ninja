@@ -60,6 +60,30 @@ when targets or build settings change.
 run it after replacing that file.
 
 
+## Developer builds: YouTube import
+
+Debug builds for macOS have **File ▸ Open YouTube URL…** (⇧⌘O). It downloads a video's audio
+and opens it as a document, ready to cut and Export As. The default is M4A, YouTube's AAC
+stream saved as is with no re-encode. MP3 and WAV are converted by ffmpeg.
+
+It is compiled only into Debug macOS builds (`#if DEBUG && os(macOS)`). Release builds, which
+include the App Store archive and the GitHub release, contain none of it, and neither does iOS.
+App Store Review Guideline 5.2.3 rejects apps that download media from YouTube.
+
+One-time setup:
+
+```bash
+brew install yt-dlp ffmpeg
+scripts/install-youtube-helper.sh   # again after editing scripts/youtube-audio.sh
+```
+
+The app is sandboxed, and a sandboxed process can't run yt-dlp itself. So the download is done
+by `scripts/youtube-audio.sh`, which the app runs with `NSUserUnixTask` from
+`~/Library/Application Scripts/com.simplepatrick.AudioNinja/`, outside the sandbox. Downloads
+land in the app container's `Application Support/YouTube` folder; **Show Downloads** in the
+window reveals it. Only download what you have the rights to: YouTube's terms of service
+otherwise forbid it.
+
 ## Continuous integration
 
 `.github/workflows/ci.yml` runs the logic tests and builds for macOS, the iOS Simulator and

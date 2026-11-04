@@ -24,6 +24,14 @@ struct AppCommands: Commands {
             .disabled(export == nil || document?.isEmpty != false)
         }
 
+        #if DEBUG && os(macOS)
+        // Debug builds only; see YouTubeImport.swift for why.
+        CommandGroup(after: .newItem) {
+            Button("Open YouTube URL…") { openWindow(id: YouTubeImportView.windowID) }
+                .keyboardShortcut("o", modifiers: [.command, .shift])
+        }
+        #endif
+
         #if os(macOS)
         // Replaces the default Help item, which would otherwise only say that no help exists.
         CommandGroup(replacing: .help) {
